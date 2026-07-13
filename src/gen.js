@@ -154,8 +154,10 @@ export function makePiece(tag, seed, partnerTag = null, forceWord = null) {
   const [lcv, lc] = makeCanvas(w, h);
   const chars = word.split('');
   const reserve = animal ? 42 : 0;
-  const s = Math.max(3, Math.min(8, Math.floor((w - 50 - reserve) / (chars.length * 4.6))));
-  const adv = 4.6 * s; // letters overlap a touch, graffiti style
+  // forced words (logos, level cards) overlap less so they stay legible
+  const advF = forceWord ? 5.4 : 4.6;
+  const s = Math.max(3, Math.min(8, Math.floor((w - 50 - reserve) / (chars.length * advF))));
+  const adv = advF * s; // letters overlap a touch, graffiti style
   const total = adv * (chars.length - 1) + 5 * s;
   let x = (w - total) / 2 - animalSide * (reserve / 2);
   const startX = x;

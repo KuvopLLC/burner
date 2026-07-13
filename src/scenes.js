@@ -45,13 +45,13 @@ function colText(ctx, str, cx, y, color) {
   stext(ctx, str, cx - textWidth(str) / 2, y, color);
 }
 
-function drawHeader(G, ctx, t) {
+function drawHeader(G, ctx, t, showNight = true) {
   const cur = G.run ? G.run.pieces.length : 0;
   if (!G.run || Math.sin(t * 5) > -0.4) colText(ctx, '1UP', 56, 4, '#ff4040');
   colText(ctx, String(cur), 56, 15, '#fff');
   colText(ctx, 'HIGH SCORE', W / 2, 4, '#ff4040');
   colText(ctx, String(Math.max(hiTop, cur)), W / 2, 15, '#fff');
-  if (G.run) {
+  if (G.run && showNight) {
     colText(ctx, 'NIGHT', W - 56, 4, '#ff4040');
     colText(ctx, String(cur + 1), W - 56, 15, '#fff');
   }
@@ -65,10 +65,12 @@ const titleScene = {
     refreshHi();
     G.run = null; // back on the marquee, no live run
     const rng = makeRng(99);
+    // the logo is a real piece
+    this.logoPiece = makePiece('BURNER', 909, null, 'BURNER');
+    this.logo = renderPiece(this.logoPiece);
+    this.dripCols = [1, 2, 3].map(r => this.logoPiece.palette[r].hex);
     this.drips = [];
-    for (let i = 0; i < 14; i++) {
-      this.drips.push({ x: 124 + rng() * 136, y: 72, len: 4 + rng() * 14, sp: 3 + rng() * 6 });
-    }
+    for (let i = 0; i < 8; i++) this.drips.push(this.newDrip(rng));
     // a skyline for the logo to burn over
     this.bldgs = [];
     let bx = 0;
@@ -79,17 +81,34 @@ const titleScene = {
     }
     this.trainX = -180;
     this.t = 0;
+    this.idle = 0;
     this.hs = loadHighScores();
-    this.copS = makeCop(11).idle[0];
-    this.dogS = makeDog(22).idle[0];
+  },
+  newDrip(rng) {
+    return {
+      x: 120 + Math.floor(rng() * 150), y0: 78 + Math.floor(rng() * 22),
+      len: 6 + rng() * 16, y: 0, sp: 2.5 + rng() * 5,
+      color: this.dripCols[Math.floor(rng() * this.dripCols.length)],
+      hold: 1.5 + rng() * 2, fade: 1,
+    };
   },
   update(G, dt) {
     this.t += dt;
-    for (const d of this.drips) if (d.y - 72 < d.len) d.y += d.sp * dt;
+    this.idle += dt;
+    if (this.idle > 10) { G.go('demo'); return; }
+    const rng = makeRng((this.t * 997) & 0xffff);
+    for (let i = 0; i < this.drips.length; i++) {
+      const d = this.drips[i];
+      if (d.y < d.len) d.y += d.sp * dt;         // running
+      else if (d.hold > 0) d.hold -= dt;          // beading
+      else if (d.fade > 0) d.fade -= dt * 0.8;    // drying
+      else this.drips[i] = this.newDrip(rng);     // a fresh drip forms
+    }
     this.trainX += dt * 46;
     if (this.trainX > W + 60) this.trainX = -200;
   },
   key(G, e) {
+    this.idle = 0;
     if (e.type === 'down' && e.key === 'Enter') G.go('name');
   },
   draw(G, ctx) {
@@ -116,31 +135,22 @@ const titleScene = {
       rect(ctx, cx + (carN === 0 ? 72 : -1), 166, 2, 2, '#ffefc0');
     }
     drawHeader(G, ctx, this.t);
-    centerText(ctx, 'BURNER', 44, '#ff3060', 4);
-    // glint sweeping the logo
-    const sweep = (this.t % 4) / 4 * (W - 120) + 60;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(sweep, 42, 9, 32);
-    ctx.clip();
-    centerText(ctx, 'BURNER', 44, '#ffd7e2', 4);
-    ctx.restore();
-    ctx.fillStyle = '#ff3060';
-    for (const d of this.drips) ctx.fillRect(Math.round(d.x), 72, 2, Math.round(d.y - 72) + 2);
-    scenter(ctx, 'GET UP. STAY UP.', 102, '#39c8e0');
-
-    // attract rotation: the opposition table / the kings — one tidy
-    // centered column, Galaga style
-    const phase = this.hs.length ? Math.floor(this.t / 5) % 2 : 0;
-    if (phase === 0) {
-      ctx.drawImage(this.copS, 151, 104);
-      stext(ctx, 'THE 5-0', 185, 116, '#fff');
-      ctx.drawImage(this.dogS, 149, 140);
-      stext(ctx, 'YARD DOG', 185, 145, '#fff');
-    } else {
+    // the burner itself, painted by the same hands as every piece
+    ctx.drawImage(this.logo, 72, 24);
+    // paint runs: they run, bead up, dry, and new ones form
+    for (const d of this.drips) {
+      ctx.globalAlpha = Math.max(0, Math.min(1, d.fade));
+      ctx.fillStyle = d.color;
+      const yLen = Math.round(Math.min(d.y, d.len));
+      ctx.fillRect(d.x, d.y0, 2, yLen);
+      ctx.fillRect(d.x, d.y0 + yLen, 2, 2); // the bead at the tip
+      ctx.globalAlpha = 1;
+    }
+    scenter(ctx, 'GET UP. STAY UP.', 126, '#39c8e0');
+    if (this.hs.length) {
       this.hs.slice(0, 3).forEach((h, i) => {
         const line = `${h.tag.padEnd(10, '.')}${String(h.piecesUp).padStart(3, '.')} UP`;
-        scenter(ctx, line, 120 + i * 14, i === 0 ? '#ffe040' : '#fff');
+        scenter(ctx, line, 142 + i * 12, i === 0 ? '#ffe040' : '#fff');
       });
     }
     if (Math.sin(this.t * 4) > -0.2) scenter(ctx, 'PRESS ENTER', 188, '#ffe040');
@@ -480,7 +490,7 @@ const intermissionScene = {
     rect(ctx, px, 184, 4, 3, '#8a8a96'); rect(ctx, px + 3, 182, 2, 2, '#8a8a96');
     if (Math.sin(this.t * 3.1) > 0.8) rect(ctx, px + 4, 181, 1, 1, '#8a8a96'); // peck
 
-    drawHeader(G, ctx, this.t);
+    drawHeader(G, ctx, this.t, false);
     const n = level(run);
     scenter(ctx, `NIGHT ${n + 1}`, 32, '#ffe040', 2);
     // strikes as marks, not words
@@ -562,13 +572,13 @@ function buildDoorLeaf(side, pieceCv) {
   rect(c, 0, 162, LEAF_W, 36, '#798088');
   rect(c, 0, 162, LEAF_W, 1, '#5c6168');
   for (const bx of [16, 62, 116, 164]) rect(c, bx, 178, 2, 2, '#5c6168');
-  // rubber meeting edge
-  const edgeX = side === 0 ? LEAF_W - 4 : 0;
-  rect(c, edgeX, 0, 4, H, '#15151a');
-  rect(c, side === 0 ? LEAF_W - 6 : 4, 0, 2, H, '#3c4048');
-  // the piece half: piece sits at screen x72 w240, split at W/2=192
+  // the piece half first: piece sits at screen x72 w240, split at W/2
   if (side === 0) c.drawImage(pieceCv, 0, 0, 120, 90, 72 - 10, 56, 120, 90);
   else c.drawImage(pieceCv, 120, 0, 120, 90, 0, 56, 120, 90);
+  // ...then the rubber gasket OVER it, so the paint stops at the seam
+  const edgeX = side === 0 ? LEAF_W - 5 : 0;
+  rect(c, edgeX, 0, 5, H, '#15151a');
+  rect(c, side === 0 ? LEAF_W - 7 : 5, 0, 2, H, '#3c4048');
   return cv;
 }
 
@@ -630,8 +640,75 @@ const doorsScene = {
   },
 };
 
+// ---- DEMO (attract mode) -----------------------------------------------------
+// Leave the title alone for ten seconds and the game shows itself off:
+// an AI writer paints a real wall, hides from real trouble, with the
+// controls on screen. Any key hands the can back.
+
+const demoScene = {
+  enter(G) {
+    const seed = (Math.floor(Math.random() * 1e9)) >>> 0;
+    G.run = newRun('CHINO', seed);
+    G.run.partner = PARTNERS[seed % PARTNERS.length];
+    G.run.piece = makePiece('CHINO', seed ^ 4242, G.run.partner.tag);
+    G.run.spot = SPOTS.find(sp => sp.kind === 'train');
+    paintScene.enter(G);
+    this.t = 0;
+    this.hiding = false;
+    this.cursor = 0;
+    this.burstT = 0.4;
+  },
+  exit(G) {
+    G.go('title'); // title enter clears the demo run
+  },
+  key(G, e) {
+    if (e.type === 'down') this.exit(G);
+  },
+  update(G, dt) {
+    this.t += dt;
+    const s = paintScene.s;
+    // leave before any transition fires: no results, no strikes, no book
+    if (!s || s.busted || s.done || this.t > 30) { this.exit(G); return; }
+    paintScene.update(G, dt);
+
+    // the AI writer
+    const trouble = s.dog || s.cop;
+    if (trouble && !this.hiding) { this.hiding = true; paintScene.key(G, { type: 'down', key: ' ' }); }
+    if (!trouble && this.hiding) { this.hiding = false; paintScene.key(G, { type: 'up', key: ' ' }); }
+    if (this.hiding) return;
+
+    const regs = [1, 2, 3, 4, 5].filter(r => !s.regDone[r]);
+    if (!regs.length) return;
+    const reg = regs[0];
+    const total = s.piece.w * s.piece.h;
+    let found = -1, i = this.cursor;
+    for (let scanned = 0; scanned < total; scanned++, i = (i + 11) % total) {
+      if (s.piece.regions[i] === reg && !s.covered[i]) { found = i; break; }
+    }
+    if (found < 0) return;
+    this.cursor = (found + 11) % total;
+    G.mouse.x = 72 + (found % s.piece.w);
+    G.mouse.y = 34 + Math.floor(found / s.piece.w);
+    const want = s.piece.palette[reg].id;
+    const canIdx = s.bag.findIndex(c2 => c2.id === want);
+    if (canIdx >= 0) s.selected = canIdx;
+    this.burstT -= dt;
+    if (this.burstT <= 0) {
+      this.burstT = 0.22;
+      paintScene.key(G, { type: 'down', key: 'x' });
+      paintScene.key(G, { type: 'up', key: 'x' });
+    }
+  },
+  draw(G, ctx) {
+    paintScene.draw(G, ctx);
+    if (Math.sin(this.t * 3) > -0.2) scenter(ctx, 'D E M O', 66, '#fff', 2);
+    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, 'PRESS ENTER', 166, '#ffe040');
+  },
+};
+
 export const SCENES = {
   doors: doorsScene,
+  demo: demoScene,
   title: titleScene,
   name: nameScene,
   partner: partnerScene,

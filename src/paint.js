@@ -63,13 +63,13 @@ export const paintScene = {
       masks[rid] = m;
     }
 
-    // The bag: the 5 colors the sketch needs + 2 decoys, shuffled
+    // The bag: the 5 colors the sketch needs + 1 decoy, shuffled
     const needed = [1, 2, 3, 4, 5].map(r => piece.palette[r]);
     const neededIds = new Set(needed.map(c => c.id));
     const decoys = COLORS.filter(c => !neededIds.has(c.id));
-    const bag = [...needed, pick(rng, decoys), pick(rng, decoys)]
+    const bag = [...needed, pick(rng, decoys)]
       .filter((c, i, a) => a.indexOf(c) === i);
-    while (bag.length < 7) bag.push(pick(rng, decoys));
+    while (bag.length < 6) bag.push(pick(rng, decoys));
     for (let i = bag.length - 1; i > 0; i--) { // shuffle
       const j = Math.floor(rng() * (i + 1));
       [bag[i], bag[j]] = [bag[j], bag[i]];
@@ -99,8 +99,15 @@ export const paintScene = {
       elapsed: 0,
       nextTrouble: spot.danger > 0 ? 6 + rng() * 4 : Infinity,
       warned: false,
-      cop: null,          // {x, stay, exposeT, leaving}
+      cop: null,          // patrolling: {x, dir, facing, phase, pauseT, turnX, passes, exposeT, spotted}
       dog: null,          // {x, dir, bit}
+      fireHeld: false, autoT: 0,
+      pal: {
+        frames: makeKid(hashStr(run.partner.tag), run.partner.hue),
+        x: 320, dir: -1, hidden: false, burstT: 2.5, target: null, scan: 0,
+        rate: ptag === 'CRISPO 149' ? 1.3 : 1.9,
+        radius: ptag === 'TEKO 5' ? 7 : 5,
+      },
       ped: null,
       pedTimer: 5 + rng() * 6,
       msg: '[X] SPRAY · ARROWS SWITCH CANS · [SPACE] HIDE',
@@ -117,8 +124,6 @@ export const paintScene = {
       kidX: 150, kidVel: 0,
       copSprite: makeCop(hashStr(spot.id)),
       dogSprite: makeDog(hashStr(spot.id) ^ 77),
-      copStay: Math.max(2.5, 5.5 + lvl * 0.25),
-      bustGrace: 1.4,
       hiding: false,
       pulse: 0,
     };
@@ -167,6 +172,22 @@ export const paintScene = {
     s.fx = s.fx.filter(f => f.t < 0.25);
     if (s.regFlash) { s.regFlash.t -= dt; if (s.regFlash.t <= 0) s.regFlash = null; }
 
+    // hold to spray: X or the mouse button autofires
+    const overWall = G.mouse.x >= PX - 8 && G.mouse.x < PX + s.piece.w + 8 &&
+                     G.mouse.y >= PY - 8 && G.mouse.y < PY + s.piece.h + 8;
+    if ((s.fireHeld || (G.mouse.down && overWall)) && !s.hiding) {
+      s.autoT -= dt;
+      if (s.autoT <= 0) {
+        burst(G, s, G.mouse.x, G.mouse.y);
+        s.autoT = 0.15;
+      }
+    } else {
+      s.autoT = 0;
+    }
+
+    // your partner works the wall with you
+    updatePal(G, s, dt);
+
     // the kid drifts toward the cursor — feet, not teleports
     const targetX = Math.max(SURF_X + 2, Math.min(SURF_X + 244, G.mouse.x - 10));
     s.kidVel = (targetX - s.kidX) * Math.min(1, dt * 8);
@@ -205,32 +226,52 @@ export const paintScene = {
           sfxBark();
           say(s, 'DOG!! [SPACE] GET UP ON THE DUMPSTER!');
         } else {
-          s.cop = { x: W + 10, stay: s.copStay, exposeT: 0, leaving: false };
+          s.cop = {
+            x: W + 14, dir: -1, facing: -1, phase: 'walk',
+            pauseT: 0, turnX: 120 + s.rng() * 120,
+            passes: s.lvl >= 3 ? 2 : 1,
+            exposeT: 0, spotted: false,
+          };
           sfxSiren();
-          say(s, '5-0!! HIDE!! [HOLD SPACE]');
+          say(s, '5-0 ON THE BLOCK — STAY OUT OF HIS SIGHT');
         }
       }
     }
 
-    // ---- cop ----
+    // ---- cop: he patrols; stay out of the flashlight ----
     if (s.cop) {
       const c = s.cop;
-      if (!c.leaving) {
-        if (c.x > 240) c.x -= (40 + s.lvl * 2.5) * dt;
-        else {
-          c.stay -= dt;
-          if (c.stay <= 0) { c.leaving = true; say(s, 'HE\'S GONE. BACK TO WORK.'); }
+      const speed = 26 + s.lvl * 2;
+      if (c.phase === 'walk') {
+        c.x += c.dir * speed * dt;
+        c.facing = c.dir;
+        if (c.dir === -1 && c.x <= c.turnX && c.passes > 0) {
+          c.phase = 'scan';
+          c.pauseT = 1.3 + s.rng() * 0.9;
+          c.passes--;
+          c.turnX = Math.max(70, c.turnX - (80 + s.rng() * 60));
         }
-        if (c.x < 290) {
-          if (s.hiding) c.exposeT = 0;
-          else {
-            c.exposeT += dt;
-            if (c.exposeT > s.bustGrace) return bust(G, this, 'cop');
-          }
+        if (c.x < -34) { s.cop = null; s.nextTrouble = this.troubleInterval(s, G); }
+        if (c.x > W + 40) { s.cop = null; s.nextTrouble = this.troubleInterval(s, G); }
+      } else { // scan: he stops and looks around — the danger window
+        const kidX = s.kidX + 10;
+        c.facing = kidX > c.x ? 1 : -1;
+        c.pauseT -= dt;
+        if (c.pauseT <= 0) c.phase = 'walk';
+      }
+      // does he see you?
+      if (s.cop) {
+        const kidX = s.kidX + 10;
+        const dx = kidX - c.x;
+        const inCone = !s.hiding && ((dx * c.facing > 0 && Math.abs(dx) < 80) || Math.abs(dx) < 24);
+        if (inCone) {
+          if (!c.spotted) { c.spotted = true; say(s, 'HE SEES YOU!! [SPACE] HIDE!'); }
+          c.exposeT += dt;
+          if (c.exposeT > 1.1) return bust(G, this, 'cop');
+        } else {
+          c.spotted = false;
+          c.exposeT = Math.max(0, c.exposeT - dt * 0.9);
         }
-      } else {
-        c.x += 55 * dt;
-        if (c.x > W + 12) { s.cop = null; s.nextTrouble = this.troubleInterval(s, G); }
       }
     }
 
@@ -275,7 +316,7 @@ export const paintScene = {
     if (s.busted || s.done) return;
     if (e.type === 'down') {
       if (e.key === ' ') { if (!s.hiding) G.run.hides++; s.hiding = true; sfxSpray(false); s.sprayT = 0; }
-      if (e.key === 'x' || e.key === 'X') burst(G, s, G.mouse.x, G.mouse.y);
+      if (e.key === 'x' || e.key === 'X') { s.fireHeld = true; burst(G, s, G.mouse.x, G.mouse.y); }
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { s.selected = (s.selected + 1) % s.bag.length; sfxRattle(); }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { s.selected = (s.selected + s.bag.length - 1) % s.bag.length; sfxRattle(); }
       const n = parseInt(e.key, 10);
@@ -298,6 +339,8 @@ export const paintScene = {
       }
     } else if (e.key === ' ') {
       s.hiding = false;
+    } else if (e.key === 'x' || e.key === 'X') {
+      s.fireHeld = false;
     }
   },
 
@@ -305,7 +348,8 @@ export const paintScene = {
     const s = this.s;
     if (s.busted || s.done) return;
     // can selection by clicking the bag; anywhere on the piece = spray
-    const i = Math.floor((x - 58) / 40);
+    const bagX = (W - (s.bag.length * 40 + 12)) / 2;
+    const i = Math.floor((x - bagX - 6) / 40);
     if (y >= 180 && y <= 214 && i >= 0 && i < s.bag.length) {
       if (i !== s.selected) { s.selected = i; sfxRattle(); }
       return;
@@ -399,8 +443,9 @@ export const paintScene = {
       ctx.globalAlpha = 1;
     }
 
-    // the kid ducks BEHIND cover, so he draws first when hiding
+    // whoever's hiding draws BEHIND cover
     if (s.hiding) drawSpriteFlip(ctx, s.kid.idle[0], 30, 100, false);
+    if (s.pal.hidden) drawSpriteFlip(ctx, idleFrame(s.pal.frames, s.pulse / 6, 1.1), 46, 102, false);
 
     // cover: a dumpster on the street and in the yard, a divider screen
     // at the gallery
@@ -427,16 +472,36 @@ export const paintScene = {
       rect(ctx, kx + (G.mouse.x > kx + 10 ? 18 : -1), 132 + bob, 2, 5, sel.hex); // can in hand
     }
 
+    // your partner, working
+    if (!s.pal.hidden) {
+      const pal = s.pal;
+      const moving = pal.target && Math.abs((PX + pal.target.x - 10) - pal.x) > 5;
+      const pcv = moving ? walkFrame(pal.frames, s.pulse / 3.2) : idleFrame(pal.frames, s.pulse / 6, 0.7);
+      drawSpriteFlip(ctx, pcv, Math.round(pal.x), 112, pal.dir === -1);
+      if (pal.target) {
+        rect(ctx, Math.round(pal.x) + (pal.dir === 1 ? 18 : -1), 132, 2, 5,
+          s.piece.palette[pal.target.rid].hex); // their can
+      }
+    }
+
     if (s.ped) {
       drawSpriteFlip(ctx, walkFrame(s.ped.sprite, s.pulse / 4), Math.round(s.ped.x), 132, s.ped.dir === -1);
     }
     if (s.cop) {
-      const standing = !s.cop.leaving && s.cop.x <= 240;
-      const cv = standing ? idleFrame(s.copSprite, s.pulse / 6) : walkFrame(s.copSprite, s.pulse / 3.5);
-      drawSpriteFlip(ctx, cv, Math.round(s.cop.x), 132, s.cop.leaving);
-      if (!s.cop.leaving && s.cop.x <= 290) {
-        const flash = Math.sin(s.pulse * 2) > 0;
-        stext(ctx, 'HIDE!', Math.round(s.cop.x) - 8, 128, flash ? '#ff3030' : '#ffe040');
+      const c = s.cop;
+      const cv = c.phase === 'walk' ? walkFrame(s.copSprite, s.pulse / 3.5) : idleFrame(s.copSprite, s.pulse / 6);
+      drawSpriteFlip(ctx, cv, Math.round(c.x), 132, c.facing === 1);
+      // the flashlight: where he's looking is where you can't be
+      const fx = c.facing === 1 ? c.x + 20 : c.x - 4;
+      ctx.fillStyle = '#ffe9a0';
+      for (let step = 0; step < 4; step++) {
+        ctx.globalAlpha = (c.phase === 'scan' ? 0.16 : 0.10) * (1 - step / 4);
+        const bw = 18 + step * 18;
+        rect(ctx, c.facing === 1 ? fx + step * 18 : fx - step * 18 - 18, 138 + step * 2, bw, 16 - step * 2, '#ffe9a0');
+      }
+      ctx.globalAlpha = 1;
+      if (c.exposeT > 0 && Math.sin(s.pulse * 3) > 0) {
+        stext(ctx, '!', Math.round(c.x) + 8, 118, '#ff3030');
       }
     }
     if (s.dog) {
@@ -463,9 +528,11 @@ export const paintScene = {
     drawCrewCorner(G, ctx);
 
     // bag of cans
-    panel(ctx, 52, 178, 280, 36, '#101018', '#3a3a52');
+    const bagW = s.bag.length * 40 + 12;
+    const bagX = (W - bagW) / 2;
+    panel(ctx, bagX, 178, bagW, 36, '#101018', '#3a3a52');
     for (let i = 0; i < s.bag.length; i++) {
-      const cx = 58 + i * 40;
+      const cx = bagX + 6 + i * 40;
       const isSel = i === s.selected;
       if (isSel) frame(ctx, cx - 2, 181, 36, 30, '#fff');
       rect(ctx, cx + 1, 185, 12, 20, '#15130f');      // silhouette
@@ -496,16 +563,12 @@ export const paintScene = {
 
 function say(s, msg) { s.msg = msg; s.msgT = 3.5; }
 
-// One key press = one burst at the cursor. Paint ONLY lands on pixels
-// whose region wants the selected color — it is impossible to paint
-// outside the designated areas.
-function burst(G, s, mx, my) {
-  if (s.hiding || s.done || s.busted) return;
+// Shared spray core: paint colorId pixels within r of (mx,my). Paint
+// ONLY lands on pixels whose region wants that color — it is impossible
+// to paint outside the designated areas.
+function applyBurst(s, mx, my, colorId, r) {
   const px = Math.round(mx - PX), py = Math.round(my - PY);
-  const w = s.piece.w, h = s.piece.h, r = s.burstR;
-  if (px < -r || px >= w + r || py < -r || py >= h + r) return; // not at the wall
-
-  const color = s.bag[s.selected];
+  const w = s.piece.w, h = s.piece.h;
   const ctx = s.paintCv[1];
   let hit = 0, doneRid = 0;
   for (let dy = -r; dy <= r; dy++) {
@@ -515,7 +578,7 @@ function burst(G, s, mx, my) {
       if (x < 0 || x >= w || y < 0 || y >= h) continue;
       const i = y * w + x;
       const rid = s.piece.regions[i];
-      if (!rid || s.piece.palette[rid].id !== color.id) continue; // wrong area: nothing sticks
+      if (!rid || s.piece.palette[rid].id !== colorId) continue;
       if (s.covered[i]) continue;
       ctx.fillStyle = pieceShade(s.piece, rid, x, y);
       ctx.fillRect(x, y, 1, 1);
@@ -529,31 +592,93 @@ function burst(G, s, mx, my) {
       hit++;
     }
   }
+  return { hit, doneRid };
+}
 
+function afterBurst(s, hit, doneRid, mx, my) {
+  if (hit <= 0) return;
+  s.sprayT = 0.14;
+  s.fx.push({ x: mx, y: my, t: 0 });
+  if (doneRid) {
+    sfxPop();
+    sfxTwinkle();
+    s.regFlash = { rid: doneRid, t: 0.5 };
+    stampShines(s, doneRid);
+    say(s, `${REGION_NAMES[doneRid]} DONE!`);
+  }
+  if ([1, 2, 3, 4, 5].every(rd => s.regDone[rd])) {
+    s.done = true;
+    s.doneAll = true;
+    s.doneT = 0;
+    sfxPop();
+    celebrate(s);
+  } else if (!s.readyTold && s.coveredCount / s.totalRegion >= 0.6) {
+    s.readyTold = true;
+    say(s, 'IT READS — [ENTER] CALLS IT DONE');
+  }
+}
+
+// The player's burst: whatever can is in hand.
+function burst(G, s, mx, my) {
+  if (s.hiding || s.done || s.busted) return;
+  const r = s.burstR;
+  const px = mx - PX, py = my - PY;
+  if (px < -r || px >= s.piece.w + r || py < -r || py >= s.piece.h + r) return;
+  const { hit, doneRid } = applyBurst(s, mx, my, s.bag[s.selected].id, r);
   if (hit > 0) {
     G.run.bursts++;
-    s.sprayT = 0.14;
-    s.fx.push({ x: mx, y: my, t: 0 });
-    if (doneRid) {
-      sfxPop();
-      sfxTwinkle();
-      s.regFlash = { rid: doneRid, t: 0.5 };
-      stampShines(s, doneRid);
-      say(s, `${REGION_NAMES[doneRid]} DONE!`);
-    }
-    if ([1, 2, 3, 4, 5].every(rd => s.regDone[rd])) {
-      s.done = true;
-      s.doneAll = true;
-      s.doneT = 0;
-      sfxPop();
-      celebrate(s);
-    } else if (!s.readyTold && s.coveredCount / s.totalRegion >= 0.6) {
-      s.readyTold = true;
-      say(s, 'IT READS — [ENTER] CALLS IT DONE');
-    }
+    afterBurst(s, hit, doneRid, mx, my);
   } else {
     if (s.msgT <= 0) say(s, 'NOT HERE — CHECK THE SKETCH FOR THIS CAN');
     sfxTick();
+  }
+}
+
+// Your partner: finds an unfinished region, walks to it, and lays paint
+// with the RIGHT can — they came up doing this. They dive for cover
+// when trouble's out.
+function updatePal(G, s, dt) {
+  const pal = s.pal;
+  const trouble = s.dog || s.cop;
+  pal.hidden = !!trouble;
+  if (pal.hidden) {
+    pal.dir = pal.x > 62 ? -1 : 1;
+    pal.x += (56 - pal.x) * Math.min(1, dt * 4);
+    pal.target = null;
+    return;
+  }
+  if (s.done || s.busted) return;
+  // pick something to paint
+  if (!pal.target) {
+    const regs = [1, 2, 3, 4, 5].filter(r => !s.regDone[r]);
+    if (!regs.length) return;
+    const reg = regs[Math.floor(s.rng() * regs.length)];
+    const total = s.piece.w * s.piece.h;
+    let i = pal.scan;
+    for (let scanned = 0; scanned < total; scanned++, i = (i + 13) % total) {
+      if (s.piece.regions[i] === reg && !s.covered[i]) {
+        pal.target = { x: i % s.piece.w, y: Math.floor(i / s.piece.w), rid: reg };
+        pal.scan = (i + 13) % total;
+        break;
+      }
+    }
+    if (!pal.target) return;
+  }
+  // walk to it
+  const tx = PX + pal.target.x - 10;
+  const dx = tx - pal.x;
+  if (Math.abs(dx) > 5) {
+    pal.dir = dx > 0 ? 1 : -1;
+    pal.x += Math.max(-46 * dt, Math.min(46 * dt, dx * dt * 4));
+  } else {
+    pal.burstT -= dt;
+    if (pal.burstT <= 0) {
+      pal.burstT = pal.rate;
+      const colorId = s.piece.palette[pal.target.rid].id;
+      const { hit, doneRid } = applyBurst(s, PX + pal.target.x, PY + pal.target.y, colorId, pal.radius);
+      afterBurst(s, hit, doneRid, PX + pal.target.x, PY + pal.target.y);
+      pal.target = null;
+    }
   }
 }
 
