@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BURNER — font & sprite specimen</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0a0a0f;
+    display: flex; align-items: center; justify-content: center; }
+  canvas { image-rendering: pixelated; width: 1280px; height: 800px; }
+</style>
+</head>
+<body>
+<canvas id="spec" width="320" height="200"></canvas>
+<script type="module">
+import { text, rect } from '../src/gfx.js';
+import { makeKid, makeCop, makePedestrian, makePiece, renderPiece } from '../src/gen.js';
+
+const ctx = document.getElementById('spec').getContext('2d');
+ctx.imageSmoothingEnabled = false;
+rect(ctx, 0, 0, 320, 200, '#0c0c1e');
+
+text(ctx, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 8, 6, '#fff');
+text(ctx, '0123456789 !?"\'()[]+-./:;=', 8, 16, '#ffe040');
+text(ctx, '*%<>_★✓·— THE QUICK BROWN FOX', 8, 26, '#40e050');
+text(ctx, 'JUMPS OVER THE LAZY DOG 1985', 8, 36, '#8ac');
+text(ctx, 'SCALE 2', 8, 48, '#ff3060', 2);
+text(ctx, 'BURNER', 100, 48, '#ff3060', 3);
+
+// sprites at 1x and 3x
+const kid1 = makeKid(12345, 210), kid2 = makeKid(777, 20), kid3 = makeKid(31337, 300);
+const cop = makeCop(42), ped = makePedestrian(99);
+[kid1, kid2, kid3, cop, ped].forEach((s, i) => {
+  ctx.drawImage(s, 10 + i * 20, 76);
+  ctx.drawImage(s, 8 + i * 62, 66, 96, 144);
+});
+
+// a sample piece
+
+
+
+
+</script>
+</body>
+</html>

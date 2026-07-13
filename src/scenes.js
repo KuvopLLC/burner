@@ -5,7 +5,7 @@
 import { W, H, text, textWidth, centerText, rect, frame, panel, dither } from './gfx.js';
 import { SKILLS, SKILL_POINTS, PARTNERS, SPOTS, GEAR } from './data.js';
 import { makeRng, irange } from './rng.js';
-import { makePiece, renderPiece, renderSketch, makeKid } from './gen.js';
+import { makePiece, renderPiece, renderSketch, makeKid, makePedestrian } from './gen.js';
 import { newRun, advanceDay, availableSpots, dailyIncome, livePieceCount, loadHighScores, saveHighScore, pointsPerDay } from './world.js';
 import { paintScene, resultScene, drawCrewCorner } from './paint.js';
 import { playBeat, stopBeat, sfxPop, sfxTick, sfxCash, sfxBust } from './audio.js';
@@ -24,14 +24,14 @@ const titleScene = {
     const rng = makeRng(99);
     this.drips = [];
     for (let i = 0; i < 14; i++) {
-      this.drips.push({ x: 70 + rng() * 180, y: 78, len: 4 + rng() * 14, sp: 3 + rng() * 6 });
+      this.drips.push({ x: 92 + rng() * 136, y: 70, len: 4 + rng() * 14, sp: 3 + rng() * 6 });
     }
     this.t = 0;
     this.hs = loadHighScores();
   },
   update(G, dt) {
     this.t += dt;
-    for (const d of this.drips) if (d.y - 78 < d.len) d.y += d.sp * dt;
+    for (const d of this.drips) if (d.y - 70 < d.len) d.y += d.sp * dt;
   },
   key(G, e) {
     if (e.type === 'down' && e.key === 'Enter') G.go('name');
@@ -44,7 +44,7 @@ const titleScene = {
     centerText(ctx, 'KUVOP PRESENTS', 26, '#666');
     centerText(ctx, 'BURNER', 42, '#ff3060', 4);
     ctx.fillStyle = '#ff3060';
-    for (const d of this.drips) ctx.fillRect(Math.round(d.x), 80, 2, Math.round(d.y - 78));
+    for (const d of this.drips) ctx.fillRect(Math.round(d.x), 70, 2, Math.round(d.y - 70) + 2);
     centerText(ctx, 'GET UP. STAY UP.', 100, '#ffe040');
     if (this.hs.length) {
       centerText(ctx, '-- KINGS OF THE LINE --', 118, '#888');
@@ -182,9 +182,9 @@ const partnerScene = {
     for (let k = -1; k <= 1; k++) {
       const idx = ((Math.round(this.pos) + k) % n + n) % n;
       const p = this.cands[idx];
-      const yOff = (Math.round(this.pos) + k - this.pos) * 22 + ry + rh / 2 - 11;
+      const yOff = (Math.round(this.pos) + k - this.pos) * 26 + ry + rh / 2 - 12;
       ctx.drawImage(this.sprites[idx], rx + 8, yOff);
-      text(ctx, p.tag, rx + 28, yOff + 5, k === 0 || this.locked ? '#fff' : '#666');
+      text(ctx, p.tag, rx + 30, yOff + 9, k === 0 || this.locked ? '#fff' : '#666');
     }
     ctx.restore();
     // pointer
@@ -261,8 +261,8 @@ const sketchScene = {
     [1, 2, 3, 4, 5].forEach((r, i) => {
       const c = run.piece.palette[r];
       rect(ctx, 172, 46 + i * 13, 9, 10, c.hex);
-      text(ctx, c.name, 186, 47 + i * 13, '#4a4034');
-      text(ctx, regionNames[r], 254, 47 + i * 13, '#8a7a5a');
+      text(ctx, c.name, 186, 48 + i * 13, '#4a4034');
+      text(ctx, regionNames[r], 256, 48 + i * 13, '#8a7a5a');
     });
     drawCrewCorner(G, ctx);
     if (this.t > 1) centerText(ctx, '[ENTER] PICK THE SPOT', 182, '#fff');
@@ -335,14 +335,14 @@ const mapScene = {
 
     // info panel
     const s = this.spots[this.sel];
-    panel(ctx, 4, 148, 200, 48, '#101018', '#3a3a52');
-    text(ctx, s.name + (s.line ? ` (${s.line})` : ''), 10, 152, '#fff');
-    text(ctx, 'SEEN:' + '★'.repeat(s.exposure), 10, 164, '#ffe040');
-    text(ctx, 'HEAT:' + '★'.repeat(s.heat) + (s.heat === 0 ? 'NONE' : ''), 80, 164, '#ff5030');
-    text(ctx, s.kind === 'train' ? 'THE WHOLE CITY SEES A TRAIN. BUFF COMES QUICK.'
+    panel(ctx, 4, 146, 236, 40, '#101018', '#3a3a52');
+    text(ctx, s.name + (s.line ? ` (${s.line})` : ''), 10, 150, '#fff');
+    text(ctx, 'SEEN ' + '★'.repeat(s.exposure), 10, 162, '#ffe040');
+    text(ctx, 'HEAT ' + (s.heat ? '★'.repeat(s.heat) : 'NONE'), 84, 162, '#ff5030');
+    text(ctx, `${s.time} SEC`, 160, 162, '#8ac');
+    text(ctx, s.kind === 'train' ? 'WHOLE CITY SEES A TRAIN. BUFF COMES QUICK.'
       : s.kind === 'gallery' ? 'SAFE. PERMANENT. NOBODY REAL SEES IT.'
-      : 'WALLS RUN LONG. TOYS MIGHT CAP YOU.', 10, 176, '#888');
-    text(ctx, `CLOCK: ${s.time}S`, 10, 188, '#8ac');
+      : 'WALLS RUN LONG. TOYS MIGHT CAP YOU.', 10, 174, '#888');
     drawCrewCorner(G, ctx);
     centerText(ctx, 'ARROWS: MOVE TARGET   [ENTER] GO', 190, '#fff');
   },
@@ -382,7 +382,8 @@ const bookScene = {
     });
     if (!run.pieces.length) centerText(ctx, 'NOTHING IN THE BOOK YET', 88, '#8a7a5a');
     text(ctx, `PAGE ${this.page + 1}`, 150, 162, '#8a7a5a');
-    centerText(ctx, `FAME ${run.score}   INCOME ${dailyIncome(run)}/DAY   ${livePieceCount(run)} PIECES RUNNING`, 178, '#ffe040');
+    const live = livePieceCount(run);
+    centerText(ctx, `FAME ${run.score}   INCOME ${dailyIncome(run)}/DAY   ${live} PIECE${live === 1 ? '' : 'S'} RUNNING`, 178, '#ffe040');
     centerText(ctx, 'ARROWS: FLIP   [ENTER] CLOSE THE BOOK', 190, '#888');
   },
 };
@@ -416,7 +417,8 @@ const intermissionScene = {
         if ((x + wy + wx) % 3) rect(ctx, x + 6 + wx * 9, 54 + wy * 12, 4, 5, '#3a3020');
     }
     centerText(ctx, `DAY ${run.day}`, 20, '#ffe040', 2);
-    centerText(ctx, `FAME ${run.score}  (+${this.income}/DAY FROM ${livePieceCount(run)} PIECES)`, 48, '#fff');
+    const live = livePieceCount(run);
+    centerText(ctx, `FAME ${run.score}  (+${this.income}/DAY FROM ${live} PIECE${live === 1 ? '' : 'S'})`, 48, '#fff');
     centerText(ctx, `STRIKES ${run.strikes}/3`, 60, run.strikes ? '#ff5030' : '#666');
     let y = 78;
     for (const n of run.news.slice(0, 3)) { centerText(ctx, n, y, '#ff8040'); y += 11; }
@@ -447,6 +449,7 @@ const rackScene = {
     this.lookAway = 0;               // >0 means clerk looking away
     this.lookTimer = 1.5;
     this.rng = makeRng((run.seed ^ (run.day * 2654435761)) >>> 0);
+    this.clerk = makePedestrian((run.seed ^ 0xC1E4) >>> 0);
   },
   update(G, dt) {
     this.t += dt;
@@ -515,13 +518,14 @@ const rackScene = {
     } else if (this.stage === 'steal') {
       const g = GEAR[this.stores[this.storeSel]];
       centerText(ctx, `INSIDE THE ${g.store}...`, 34, '#888');
-      // clerk
-      const clerkX = W / 2 - 7;
-      rect(ctx, clerkX, 50, 14, 20, '#5a4632');
-      rect(ctx, clerkX + 3, 46, 8, 6, '#c68e5e');
+      // clerk behind the counter
+      const clerkX = W / 2 - 8;
+      ctx.drawImage(this.clerk, clerkX, 46);
+      rect(ctx, W / 2 - 30, 66, 60, 8, '#5a4632');
+      rect(ctx, W / 2 - 30, 66, 60, 2, '#6f5940');
+      if (!this.lookAway) text(ctx, '!', clerkX + 6, 36, '#ff4030');
       text(ctx, this.lookAway ? 'CLERK IS BUSY...' : 'CLERK IS WATCHING',
-        W / 2 - 55, 78, this.lookAway ? '#40e050' : '#ff4030');
-      if (!this.lookAway) { text(ctx, 'O O', clerkX + 2, 48, '#fff'); }
+        W / 2 - 51, 80, this.lookAway ? '#40e050' : '#ff4030');
       // timing bar
       const bx = 60;
       rect(ctx, bx, 110, 200, 14, '#1a1a2a');

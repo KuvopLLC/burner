@@ -1,9 +1,11 @@
 // gen.js — procedural pixel art: writer avatars and burner pieces.
-// A "piece" is a region map: each pixel belongs to a paint region
-// (fill top, fill bottom, outline, shadow, cloud) that wants one color.
+// Sprites are drawn from pixel-map templates (one char = one palette key),
+// outlined like proper 8-bit art. A "piece" is a region map: each pixel
+// belongs to a paint region (fill top, fill bottom, outline, shadow,
+// cloud) that wants one color.
 
-import { makeCanvas, text, textWidth } from './gfx.js';
-import { makeRng, pick, irange } from './rng.js';
+import { makeCanvas, text } from './gfx.js';
+import { makeRng, pick } from './rng.js';
 import { COLORS } from './data.js';
 
 export const PIECE_W = 240, PIECE_H = 90;
@@ -46,19 +48,19 @@ export function makePiece(tag, seed) {
   const rng = makeRng(seed);
   const w = PIECE_W, h = PIECE_H;
 
-  // 1. Render the tag as big bouncing letters
+  // 1. Render the tag as big bouncing letters (5x7 font, scaled fat)
   const [lcv, lc] = makeCanvas(w, h);
   const chars = tag.split('');
-  const s = Math.max(3, Math.min(6, Math.floor((w - 40) / (chars.length * 6))));
-  const advances = chars.map(ch => (textWidth(ch) - 3) * s * 0.85);
-  const total = advances.reduce((a, b) => a + b, 0);
+  const s = Math.max(3, Math.min(8, Math.floor((w - 50) / (chars.length * 4.6))));
+  const adv = 4.6 * s; // letters overlap a touch, graffiti style
+  const total = adv * (chars.length - 1) + 5 * s;
   let x = (w - total) / 2;
-  const yBase = h / 2 - 5 * s;
+  const yBase = h / 2 - 3.5 * s;
   const bounce = rng() * 6.28;
   for (let i = 0; i < chars.length; i++) {
     const wob = Math.sin(bounce + i * 1.9) * s * 0.7;
     text(lc, chars[i], x, yBase + wob, '#fff', s);
-    x += advances[i];
+    x += adv;
   }
 
   // 2. Letter mask
@@ -157,69 +159,152 @@ export function renderSketch(piece) {
 
 function hsl(h, s, l) { return `hsl(${h},${s}%,${l}%)`; }
 
-// A writer kid: sideways cap, hoodie/track suit, gold chain, shell-toes.
-// 14x22. facing: 1 = right, -1 = left (brim side).
-export function makeKid(seed, hue, facing = 1) {
-  const rng = makeRng(seed);
-  const skin = pick(rng, ['#8d5a3b', '#6b4226', '#c68e5e', '#5a3620', '#a9714b']);
-  const top = hsl(hue, 65, 45);
-  const topDark = hsl(hue, 65, 30);
-  const capHue = rng() < 0.5 ? hue : (hue + 180) % 360;
-  const cap = hsl(capHue, 70, 40);
-  const [cv, c] = makeCanvas(14, 22);
-  const P = (x, y, w2, h2, col) => { c.fillStyle = col; c.fillRect(x, y, w2, h2); };
-  // cap, brim sideways
-  P(4, 0, 6, 3, cap);
-  if (facing === 1) P(9, 1, 5, 2, cap); else P(0, 1, 5, 2, cap);
-  // face
-  P(4, 3, 6, 5, skin);
-  P(facing === 1 ? 8 : 4, 4, 2, 1, '#1a1010'); // eyes toward facing
-  // gold rope chain
-  P(4, 8, 6, 1, '#e8c030');
-  // hoodie / track top
-  P(3, 9, 8, 7, top);
-  P(3, 11, 8, 1, '#f0f0f0');       // chest stripe
-  P(3, 12, 8, 1, topDark);
-  P(2, 9, 1, 5, top); P(11, 9, 1, 5, top); // arms
-  P(2, 14, 1, 1, skin); P(11, 14, 1, 1, skin); // hands
-  // track pants with side stripe
-  P(4, 16, 2, 4, '#20242c'); P(8, 16, 2, 4, '#20242c');
-  P(5, 16, 1, 4, '#f0f0f0'); P(9, 16, 1, 4, '#f0f0f0');
-  // shell-toes: white, dark stripes, fat toe
-  P(3, 20, 4, 2, '#f5f5f0'); P(7, 20, 4, 2, '#f5f5f0');
-  P(4, 20, 1, 1, '#333'); P(8, 20, 1, 1, '#333');
-  P(3, 21, 4, 1, '#ddd'); P(7, 21, 4, 1, '#ddd');
+// Render a pixel-map template. Each char indexes the palette; '.' is
+// transparent.
+function renderSprite(rows, palette) {
+  const w = rows[0].length, h = rows.length;
+  const [cv, c] = makeCanvas(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const k = rows[y][x];
+      if (k === '.') continue;
+      c.fillStyle = palette[k];
+      c.fillRect(x, y, 1, 1);
+    }
+  }
   return cv;
 }
+
+const SKIN_TONES = [
+  ['#a06a42', '#7d4f2e'], ['#7a4a28', '#5c3419'], ['#c98e5a', '#a06a3e'],
+  ['#5f3a1e', '#452811'], ['#b57a48', '#8f5a30'],
+];
+
+// A writer kid: sideways cap, striped top, gold rope chain, shell-toes.
+// 16x24, facing right (brim side).
+const KID = [
+  '.....OOOOO......',
+  '...OOCCCCCOO....',
+  '..OCCCCCCCCCO...',
+  '..OCCCCCCCCCOOO.',
+  '..ODDDDDDDDDCCO.',
+  '..OSSSSSSSSSOOO.',
+  '..OSSSSSSSSSO...',
+  '..OSFESSSFESO...',
+  '..OSSSSSSSSSO...',
+  '..OKKSSSSSKKO...',
+  '...OOSSSSSOO....',
+  '..OOGGGGGGGOO...',
+  '.OHHOGGGGGOHHO..',
+  '.OHHHHHHHHHHHO..',
+  '.OWWWWWWWWWWWO..',
+  '.OHHHHHHHHHHHO..',
+  '.OIHHHHHHHHHIO..',
+  '.OSIHHHHHHHISO..',
+  '..OOPPPPPPPOO...',
+  '..OPPPO.OPPPO...',
+  '..OPQPO.OPQPO...',
+  '..OPQPO.OPQPO...',
+  '..OTTTO.OTTTO...',
+  '.OUUUUO.OUUUUO..',
+];
+
+export function makeKid(seed, hue) {
+  const rng = makeRng(seed);
+  const [skin, skinDark] = pick(rng, SKIN_TONES);
+  const capHue = rng() < 0.45 ? hue : (hue + 140 + rng() * 80) % 360;
+  const striped = rng() < 0.65;
+  const topMain = hsl(hue, 60, 42);
+  return renderSprite(KID, {
+    O: '#14100c',
+    C: hsl(capHue, 72, 46), D: hsl(capHue, 72, 30),
+    S: skin, K: skinDark, E: '#180f0a', F: '#e8e2d4',
+    G: '#f0c040',
+    H: topMain, I: hsl(hue, 60, 28),
+    W: striped ? '#f0f0ea' : topMain,
+    P: '#262a34', Q: '#e8e8e8',
+    T: '#f2f2ec', U: '#26221c',
+  });
+}
+
+// Beat cop: peaked cap with visor, navy uniform, badge, duty belt.
+const COP = [
+  '................',
+  '...OOOOOOOOO....',
+  '..OBBBBBBBBBO...',
+  '..OBBGBBBBBBO...',
+  '..OOOOOOOOOOOO..',
+  '..OSSSSSSSSSO...',
+  '..OSSSSSSSSSO...',
+  '..OSFESSSFESO...',
+  '..OSSSSSSSSSO...',
+  '..OKSSSSSSSKO...',
+  '...OOSSSSSOO....',
+  '..OBBBBBBBBBOO..',
+  '.OBBBBBBBBBBBO..',
+  '.OBBGBBBBBBBBO..',
+  '.OBBBBBBBBBBBO..',
+  '.OBBBBBBBBBBBO..',
+  '.OIBBBBBBBBBIO..',
+  '.OSIBBBBBBBISO..',
+  '..OUUUGGUUUOO...',
+  '..OMMMO.OMMMO...',
+  '..OMMMO.OMMMO...',
+  '..OMMMO.OMMMO...',
+  '..OUUUO.OUUUO...',
+  '.OUUUUO.OUUUUO..',
+];
 
 export function makeCop(seed) {
   const rng = makeRng(seed);
-  const skin = pick(rng, ['#8d5a3b', '#c68e5e', '#e0b088', '#6b4226']);
-  const [cv, c] = makeCanvas(14, 22);
-  const P = (x, y, w2, h2, col) => { c.fillStyle = col; c.fillRect(x, y, w2, h2); };
-  P(4, 0, 6, 2, '#1a2a5a'); P(3, 2, 8, 1, '#1a2a5a'); // peaked cap
-  P(6, 1, 2, 1, '#e8c030');                            // badge
-  P(4, 3, 6, 5, skin);
-  P(5, 4, 4, 1, '#1a1010');
-  P(3, 8, 8, 8, '#24356e');                            // uniform
-  P(6, 8, 2, 8, '#1a2650');
-  P(2, 8, 1, 6, '#24356e'); P(11, 8, 1, 6, '#24356e');
-  P(3, 16, 3, 4, '#1a2650'); P(8, 16, 3, 4, '#1a2650');
-  P(3, 20, 4, 2, '#111'); P(7, 20, 4, 2, '#111');
-  return cv;
+  const [skin, skinDark] = pick(rng, SKIN_TONES.concat([['#e0b088', '#c09068']]));
+  return renderSprite(COP, {
+    O: '#0c0e14',
+    B: '#25356e', I: '#1a2650', M: '#1c2a55',
+    G: '#f0c040',
+    S: skin, K: skinDark, E: '#180f0a', F: '#e8e2d4',
+    U: '#16141a',
+  });
 }
+
+// A passer-by: random hair and jacket, nothing fresh about them.
+const PED = [
+  '................',
+  '................',
+  '................',
+  '....OOOOOO......',
+  '...OAAAAAAO.....',
+  '..OASSSSSSAO....',
+  '..OSSSSSSSSO....',
+  '..OSFESSFESO....',
+  '..OSSSSSSSSO....',
+  '..OKSSSSSSKO....',
+  '...OOSSSSOO.....',
+  '..OJJJJJJJJOO...',
+  '.OJJJJJJJJJJJO..',
+  '.OJJJJJJJJJJJO..',
+  '.OJJJJJJJJJJJO..',
+  '.OIJJJJJJJJJIO..',
+  '.OSIJJJJJJJISO..',
+  '..OOPPPPPPPOO...',
+  '..OPPPO.OPPPO...',
+  '..OPPPO.OPPPO...',
+  '..OPPPO.OPPPO...',
+  '..OPPPO.OPPPO...',
+  '..OUUUO.OUUUO...',
+  '.OUUUUO.OUUUUO..',
+];
 
 export function makePedestrian(seed) {
   const rng = makeRng(seed);
-  const skin = pick(rng, ['#8d5a3b', '#c68e5e', '#e0b088', '#6b4226', '#a9714b']);
-  const top = hsl(irange(rng, 0, 359), 40, 50);
-  const [cv, c] = makeCanvas(14, 22);
-  const P = (x, y, w2, h2, col) => { c.fillStyle = col; c.fillRect(x, y, w2, h2); };
-  if (rng() < 0.4) P(3, 0, 8, 3, '#3a3230'); // hair or hat
-  P(4, 2, 6, 6, skin);
-  P(5, 4, 4, 1, '#1a1010');
-  P(3, 8, 8, 8, top);
-  P(4, 16, 2, 4, '#3a3a44'); P(8, 16, 2, 4, '#3a3a44');
-  P(3, 20, 4, 2, '#5a4632'); P(7, 20, 4, 2, '#5a4632');
-  return cv;
+  const [skin, skinDark] = pick(rng, SKIN_TONES.concat([['#e0b088', '#c09068']]));
+  const jacketHue = Math.floor(rng() * 360);
+  return renderSprite(PED, {
+    O: '#14100c',
+    A: pick(rng, ['#2a2018', '#463222', '#181614', '#6a5a4a']),
+    S: skin, K: skinDark, E: '#180f0a', F: '#e8e2d4',
+    J: hsl(jacketHue, 35, 45), I: hsl(jacketHue, 35, 30),
+    P: '#3a3a44',
+    U: '#4a3a28',
+  });
 }

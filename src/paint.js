@@ -249,22 +249,25 @@ export const paintScene = {
       ctx.globalAlpha = 1;
     }
 
-    // dumpster (your hiding spot)
-    rect(ctx, 6, 118, 26, 20, '#2a4a34');
-    rect(ctx, 6, 116, 26, 3, '#1d3625');
-    text(ctx, 'XX', 12, 122, '#16281c');
+    // the kid ducks BEHIND the dumpster, so he draws first when hiding
+    if (s.hiding) ctx.drawImage(s.kid, 12, 106);
 
-    // the kid: hiding behind the dumpster, or painting at the mouse
+    // dumpster (your hiding spot)
+    rect(ctx, 6, 118, 28, 20, '#2a4a34');
+    rect(ctx, 6, 116, 28, 3, '#3a5f44');
+    rect(ctx, 6, 128, 28, 1, '#1d3625');
+    rect(ctx, 9, 121, 4, 3, '#1d3625');
+    rect(ctx, 27, 121, 4, 3, '#1d3625');
+
     if (s.hiding) {
-      ctx.drawImage(s.kid, 12, 108);
-      text(ctx, '!', 20, 96, '#ffe040');
+      text(ctx, '!', 20, 94, '#ffe040');
     } else if (!s.busted) {
-      const kx = Math.max(30, Math.min(280, G.mouse.x - 7));
+      const kx = Math.max(30, Math.min(280, G.mouse.x - 8));
       ctx.drawImage(s.kid, kx, 118);
-      rect(ctx, kx + (G.mouse.x > kx + 7 ? 14 : -3), 122, 2, 4, sel.hex); // can in hand
+      rect(ctx, kx + (G.mouse.x > kx + 8 ? 15 : -2), 130, 2, 5, sel.hex); // can in hand
     }
 
-    if (s.ped) ctx.drawImage(s.ped.sprite, Math.round(s.ped.x), 140);
+    if (s.ped) ctx.drawImage(s.ped.sprite, Math.round(s.ped.x), 138);
     if (s.cop) {
       ctx.drawImage(s.copSprite, Math.round(s.cop.x), 138);
       if (!s.cop.leaving && s.cop.x <= 290) {
@@ -288,9 +291,16 @@ export const paintScene = {
       const cx = 26 + i * 40;
       const isSel = i === s.selected;
       if (isSel) frame(ctx, cx - 2, 166, 36, 30, '#fff');
-      rect(ctx, cx + 2, 170, 10, 18, s.bag[i].hex);
-      rect(ctx, cx + 4, 168, 6, 2, '#999');
-      text(ctx, String(i + 1), cx + 16, 170, isSel ? '#fff' : '#777');
+      rect(ctx, cx + 1, 170, 12, 20, '#15130f');      // silhouette
+      rect(ctx, cx + 2, 171, 10, 18, s.bag[i].hex);   // body
+      ctx.globalAlpha = 0.3;
+      rect(ctx, cx + 3, 171, 2, 18, '#fff');          // sheen
+      ctx.globalAlpha = 1;
+      rect(ctx, cx + 2, 178, 10, 5, '#ece7d8');       // label band
+      rect(ctx, cx + 4, 180, 6, 1, s.bag[i].hex);
+      rect(ctx, cx + 4, 167, 6, 3, '#8a8f98');        // cap
+      rect(ctx, cx + 5, 166, 4, 1, '#aab0ba');
+      text(ctx, String(i + 1), cx + 17, 170, isSel ? '#fff' : '#777');
     }
     // shared paint meter, under the clock
     meter(ctx, 8, 24, 44, 6, s.paint / s.paintCap, '#40a0e0');
