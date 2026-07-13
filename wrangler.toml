@@ -1,0 +1,11 @@
+name = "burner"
+main = "worker/index.js"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "."
+binding = "ASSETS"
+
+[[kv_namespaces]]
+binding = "SCORES"
+id = "450400e1a3084103b495ae6e2b4c25e1"

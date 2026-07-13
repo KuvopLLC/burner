@@ -11,6 +11,7 @@ import { paintScene, resultScene, drawCrewCorner } from './paint.js';
 import { drawSpriteFlip, idleFrame } from './scenery.js';
 import { buildBronxMap, MAP_H } from './bronx.js';
 import { playBeat, stopBeat, stopAmbience, sfxPop, sfxTick, sfxChime, sfxDoorSlide } from './audio.js';
+import { submitScore, fetchScores } from './net.js';
 
 function hashStr(s) {
   let h = 2166136261;
@@ -83,6 +84,13 @@ const titleScene = {
     this.t = 0;
     this.idle = 0;
     this.hs = loadHighScores();
+    this.kings = null; // tonight's board, from the city itself
+    fetchScores().then(list => {
+      if (list && list.length) {
+        this.kings = list;
+        hiTop = Math.max(hiTop, list[0].up);
+      }
+    });
   },
   newDrip(rng) {
     return {
@@ -110,6 +118,9 @@ const titleScene = {
   key(G, e) {
     this.idle = 0;
     if (e.type === 'down' && e.key === 'Enter') G.go('name');
+    if (e.type === 'down' && (e.key === 'g' || e.key === 'G')) {
+      try { window.open('https://github.com/KuvopLLC/burner/issues', '_blank'); } catch (err) { /* headless */ }
+    }
   },
   draw(G, ctx) {
     rect(ctx, 0, 0, W, H, '#0c0c1e');
@@ -147,14 +158,18 @@ const titleScene = {
       ctx.globalAlpha = 1;
     }
     scenter(ctx, 'GET UP. STAY UP.', 126, '#39c8e0');
-    if (this.hs.length) {
-      this.hs.slice(0, 3).forEach((h, i) => {
+    const board = this.kings
+      ? this.kings.map(k => ({ tag: k.tag, piecesUp: k.up }))
+      : this.hs;
+    if (board.length) {
+      if (this.kings) scenter(ctx, "- TONIGHT'S KINGS -", 130, '#ff4040');
+      board.slice(0, 3).forEach((h, i) => {
         const line = `${h.tag.padEnd(10, '.')}${String(h.piecesUp).padStart(3, '.')} UP`;
         scenter(ctx, line, 142 + i * 12, i === 0 ? '#ffe040' : '#fff');
       });
     }
     if (Math.sin(this.t * 4) > -0.2) scenter(ctx, 'PRESS ENTER', 188, '#ffe040');
-    scenter(ctx, '© 1986 KUVOP', 205, '#666');
+    scenter(ctx, '© 1986 KUVOP · [G] GITHUB', 205, '#666');
   },
 };
 
@@ -513,6 +528,7 @@ const gameoverScene = {
     const n = level(run);
     this.hs = saveHighScore(run.tag, n);
     this.isKing = this.hs.length && this.hs[0].tag === run.tag && this.hs[0].piecesUp === n;
+    if (n > 0) submitScore(run.tag, n);
   },
   update(G, dt) { this.t += dt; },
   key(G, e) {

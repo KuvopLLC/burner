@@ -1,2 +1,4 @@
 agilemarkdown
 agilemarkdown_bash_autocomplete
+node_modules/
+.wrangler/
