@@ -257,25 +257,71 @@ export function makePiece(tag, seed, partnerTag = null) {
     [R_SHADOW]: byId(shadowC), [R_CLOUD]: byId(cloudC),
   };
 
-  // 6. Pixel counts per region (for coverage math)
+  // 6. Pixel counts + vertical bounds per region (coverage + fades)
   const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  for (let i = 0; i < w * h; i++) if (regions[i]) counts[regions[i]]++;
+  const regBounds = {};
+  for (let i = 0; i < w * h; i++) {
+    const r = regions[i];
+    if (!r) continue;
+    counts[r]++;
+    const y = Math.floor(i / w);
+    const b = regBounds[r] || (regBounds[r] = { minY: y, maxY: y });
+    if (y < b.minY) b.minY = y;
+    if (y > b.maxY) b.maxY = y;
+  }
 
-  return { tag, word, seed, w, h, regions, palette, counts };
+  return { tag, word, seed, w, h, regions, palette, counts, regBounds };
 }
 
-// Full-color render of a piece (partner samples, finished walls)
+// ---- Fades ---------------------------------------------------------------
+// Real pieces aren't flat: fills FADE from light to dark down the
+// letters, dithered like a fat cap laying a gradient. The ghost, the
+// paint you spray, and the final render all share this shading.
+
+const shadeCache = new Map();
+
+function shadeHex(hex, f) {
+  const key = hex + f;
+  let v = shadeCache.get(key);
+  if (v) return v;
+  const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+  const m = ch => Math.round(f > 0 ? ch + (255 - ch) * f : ch * (1 + f));
+  v = '#' + [m(r), m(g), m(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+  shadeCache.set(key, v);
+  return v;
+}
+
+// dithered three-band fade within a region
+export function pieceShade(piece, rid, x, y) {
+  const hex = piece.palette[rid].hex;
+  if (rid === 3 || rid === 4) return hex; // outline + shadow stay flat
+  const b = piece.regBounds[rid];
+  if (!b || b.maxY <= b.minY) return hex;
+  let v = (y - b.minY) / (b.maxY - b.minY);
+  const dith = ((x & 1) + ((y & 1) << 1)) / 4;
+  v += (dith - 0.375) * 0.34;
+  const f = rid === 5 ? 0.10 : 0.24;
+  if (v < 0.34) return shadeHex(hex, f);
+  if (v < 0.67) return hex;
+  return shadeHex(hex, -f * 0.85);
+}
+
+// Full-color render of a piece (ghost, partner samples, name preview)
 export function renderPiece(piece) {
   const [cv, c] = makeCanvas(piece.w, piece.h);
   const img = c.createImageData(piece.w, piece.h);
   const d = img.data;
+  const rgbCache = new Map();
   for (let i = 0; i < piece.w * piece.h; i++) {
     const r = piece.regions[i];
     if (!r) continue;
-    const hex = piece.palette[r].hex;
-    d[i * 4] = parseInt(hex.slice(1, 3), 16);
-    d[i * 4 + 1] = parseInt(hex.slice(3, 5), 16);
-    d[i * 4 + 2] = parseInt(hex.slice(5, 7), 16);
+    const hex = pieceShade(piece, r, i % piece.w, Math.floor(i / piece.w));
+    let rgb = rgbCache.get(hex);
+    if (!rgb) {
+      rgb = [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+      rgbCache.set(hex, rgb);
+    }
+    d[i * 4] = rgb[0]; d[i * 4 + 1] = rgb[1]; d[i * 4 + 2] = rgb[2];
     d[i * 4 + 3] = 255;
   }
   c.putImageData(img, 0, 0);
@@ -349,42 +395,55 @@ function makeFrames(rows, palette, { eyeRow, eyeClosed, legStart, legRows } = {}
   return { idle: [norm, blink], walk: [norm, stride], w: rows[0].length, h: rows.length };
 }
 
-// A writer kid: sideways cap, striped top, gold rope chain, shell-toes.
-// 16x24, facing right (brim side).
+
+// A writer kid, 20x30: fitted cap with top shine and a real brim, eye
+// whites, cheek shading, a linked rope chain with a hanging medallion,
+// striped top with side shading, track pants, shell-toes with flared
+// soles. Facing right.
 const KID = [
-  '.....OOOOO......',
-  '...OOCCCCCOO....',
-  '..OCCCCCCCCCO...',
-  '..OCCCCCCCCCOOO.',
-  '..ODDDDDDDDDCCO.',
-  '..OSSSSSSSSSOOO.',
-  '..OSSSSSSSSSO...',
-  '..OSFESSSFESO...',
-  '..OSSSSSSSSSO...',
-  '..OKKSSSSSKKO...',
-  '...OOSSSSSOO....',
-  '..OOGGGGGGGOO...',
-  '.OHHOGGGGGOHHO..',
-  '.OHHHHHHHHHHHO..',
-  '.OWWWWWWWWWWWO..',
-  '.OHHHHHHHHHHHO..',
-  '.OIHHHHHHHHHIO..',
-  '.OSIHHHHHHHISO..',
-  '..OOPPPPPPPOO...',
-  '..OPPPO.OPPPO...',
-  '..OPQPO.OPQPO...',
-  '..OPQPO.OPQPO...',
-  '..OTTTO.OTTTO...',
-  '.OUUUUO.OUUUUO..',
+  '......OOOOOOO.......',
+  '....OOCLLLLLCOO.....',
+  '...OCLLCCCCCCCCO....',
+  '..OCCLCCCCCCCCCO....',
+  '..OCCCCCCCCCCCCOOO..',
+  '..ODDDDDDDDDDDDCCCO.',
+  '..OSSSSSSSSSSSSOOOO.',
+  '..OSSSSSSSSSSSSO....',
+  '..OSFFESSSSFFESO....',
+  '..OSSSSSSSSSSSSO....',
+  '..OKSSSSSSSSSSSO....',
+  '...OKSSSSSSSSKO.....',
+  '....OOSSSSSSOO......',
+  '...OGYGGYGGYGGO.....',
+  '..OHHOGGGGGGOHHO....',
+  '.OHHHHOGYGOHHHHHO...',
+  '.OHHHHHOOOHHHHHHO...',
+  '.OWWWWWWWWWWWWWWO...',
+  '.OHHHHHHHHHHHHHHO...',
+  '.OIHHHHHHHHHHHHIO...',
+  '.OIHHHHHHHHHHHHIO...',
+  '.OSIHHHHHHHHHHISO...',
+  '..OOPPPPPPPPPPOO....',
+  '...OPPPPO..OPPPPO...',
+  '...OPQPPO..OPQPPO...',
+  '...OPQPPO..OPQPPO...',
+  '...OPQPPO..OPQPPO...',
+  '...OTTTTO..OTTTTO...',
+  '..OTTTTTTOOTTTTTTO..',
+  '..OUUUUUUO.OUUUUUUO.',
 ];
 
 const KID_STRIDE = [
-  '.OPPPO...OPPPO..',
-  '.OPQPO...OPQPO..',
-  '.OPQPO...OPQPO..',
-  '.OTTTO...OTTTO..',
-  'OUUUUO...OUUUUO.',
+  '..OPPPPO....OPPPPO..',
+  '..OPQPPO....OPQPPO..',
+  '..OPQPPO....OPQPPO..',
+  '..OPQPPO....OPQPPO..',
+  '..OTTTTO....OTTTTO..',
+  '.OTTTTTTO..OTTTTTTO.',
+  '.OUUUUUUO..OUUUUUUO.',
 ];
+
+const KID_BLINK = '..OSKKSSSSKKSSSO....';
 
 export function makeKid(seed, hue) {
   const rng = makeRng(seed);
@@ -393,125 +452,202 @@ export function makeKid(seed, hue) {
   const striped = rng() < 0.65;
   const topMain = hsl(hue, 60, 42);
   return makeFrames(KID, {
-    O: '#14100c',
-    C: hsl(capHue, 72, 46), D: hsl(capHue, 72, 30),
-    S: skin, K: skinDark, E: '#180f0a', F: '#e8e2d4',
-    G: '#f0c040',
-    H: topMain, I: hsl(hue, 60, 28),
+    O: '#171310',
+    C: hsl(capHue, 72, 46), D: hsl(capHue, 72, 28), L: hsl(capHue, 72, 62),
+    S: skin, K: skinDark, E: '#180f0a', F: '#ece6d8',
+    G: '#e0b02c', Y: '#f8dc6a',
+    H: topMain, I: hsl(hue, 60, 26),
     W: striped ? '#f0f0ea' : topMain,
     P: '#262a34', Q: '#e8e8e8',
-    T: '#f2f2ec', U: '#26221c',
-  }, { eyeRow: 7, eyeClosed: '..OSKKSSSKKSO...', legStart: 19, legRows: KID_STRIDE });
+    T: '#f2f2ec', U: '#22201a',
+  }, { eyeRow: 8, eyeClosed: KID_BLINK, legStart: 23, legRows: KID_STRIDE });
 }
 
-// Beat cop: peaked cap with visor, navy uniform, badge, duty belt.
+// Beat cop, 20x30: peaked cap with a full visor, cap + chest badges,
+// duty belt with the buckle catching light.
 const COP = [
-  '................',
-  '...OOOOOOOOO....',
-  '..OBBBBBBBBBO...',
-  '..OBBGBBBBBBO...',
-  '..OOOOOOOOOOOO..',
-  '..OSSSSSSSSSO...',
-  '..OSSSSSSSSSO...',
-  '..OSFESSSFESO...',
-  '..OSSSSSSSSSO...',
-  '..OKSSSSSSSKO...',
-  '...OOSSSSSOO....',
-  '..OBBBBBBBBBOO..',
-  '.OBBBBBBBBBBBO..',
-  '.OBBGBBBBBBBBO..',
-  '.OBBBBBBBBBBBO..',
-  '.OBBBBBBBBBBBO..',
-  '.OIBBBBBBBBBIO..',
-  '.OSIBBBBBBBISO..',
-  '..OUUUGGUUUOO...',
-  '..OMMMO.OMMMO...',
-  '..OMMMO.OMMMO...',
-  '..OMMMO.OMMMO...',
-  '..OUUUO.OUUUO...',
-  '.OUUUUO.OUUUUO..',
+  '....OOOOOOOOOOO.....',
+  '...OBRBBBBBBBBBO....',
+  '..OBBBGBBBBBBBBO....',
+  '..OOOOOOOOOOOOOOOO..',
+  '...OSSSSSSSSSSSO....',
+  '...OSSSSSSSSSSSO....',
+  '...OSFFESSSFFESO....',
+  '...OSSSSSSSSSSSO....',
+  '...OKSSSSSSSSSSO....',
+  '....OKSSSSSSSKO.....',
+  '.....OOSSSSOO.......',
+  '....OBBBBBBBBO......',
+  '..OBBBBBBBBBBBBO....',
+  '.OBBBBGBBBBBBBBBO...',
+  '.OBBBBBBBBBBBBBBO...',
+  '.OBBBBBBBBBBBBBBO...',
+  '.OIBBBBBBBBBBBBIO...',
+  '.OIBBBBBBBBBBBBIO...',
+  '.OSIBBBBBBBBBBISO...',
+  '..OOUUUYGUUUUUOO....',
+  '...OMMMMO..OMMMMO...',
+  '...OMMMMO..OMMMMO...',
+  '...OMMMMO..OMMMMO...',
+  '...OMMMMO..OMMMMO...',
+  '...OMMMMO..OMMMMO...',
+  '...OMMMMO..OMMMMO...',
+  '...OUUUUO..OUUUUO...',
+  '..OUUUUUUOOUUUUUUO..',
+  '..OUUUUUUO.OUUUUUUO.',
+  '....................',
 ];
 
 const COP_STRIDE = [
-  '.OMMMO...OMMMO..',
-  '.OMMMO...OMMMO..',
-  '.OMMMO...OMMMO..',
-  '.OUUUO...OUUUO..',
-  'OUUUUO...OUUUUO.',
+  '..OMMMMO....OMMMMO..',
+  '..OMMMMO....OMMMMO..',
+  '..OMMMMO....OMMMMO..',
+  '..OMMMMO....OMMMMO..',
+  '..OMMMMO....OMMMMO..',
+  '..OMMMMO....OMMMMO..',
+  '..OUUUUO....OUUUUO..',
+  '.OUUUUUUO..OUUUUUUO.',
+  '.OUUUUUUO..OUUUUUUO.',
+  '....................',
 ];
+
+const COP_BLINK = '...OSKKSSSKKSSSO....';
 
 export function makeCop(seed) {
   const rng = makeRng(seed);
   const [skin, skinDark] = pick(rng, SKIN_TONES.concat([['#e0b088', '#c09068']]));
   return makeFrames(COP, {
     O: '#0c0e14',
-    B: '#25356e', I: '#1a2650', M: '#1c2a55',
-    G: '#f0c040',
-    S: skin, K: skinDark, E: '#180f0a', F: '#e8e2d4',
+    B: '#25356e', I: '#1a2650', M: '#1c2a55', R: '#3a4a86',
+    G: '#f0c040', Y: '#f8dc6a',
+    S: skin, K: skinDark, E: '#180f0a', F: '#ece6d8',
     U: '#16141a',
-  }, { eyeRow: 7, eyeClosed: '..OSKKSSSKKSO...', legStart: 19, legRows: COP_STRIDE });
+  }, { eyeRow: 6, eyeClosed: COP_BLINK, legStart: 20, legRows: COP_STRIDE });
 }
 
-// Yard security: same cut as the beat cop, grayer coat, big flashlight
-// habit. Ambience — he hasn't seen you. Yet.
+// Yard security: same cut, grayer coat, big flashlight habit.
 export function makeGuard(seed) {
   const rng = makeRng(seed);
   const [skin, skinDark] = pick(rng, SKIN_TONES.concat([['#e0b088', '#c09068']]));
   return makeFrames(COP, {
     O: '#0c0e14',
-    B: '#3d4048', I: '#2c2f36', M: '#33363e',
-    G: '#c8c8d0',
-    S: skin, K: skinDark, E: '#180f0a', F: '#e8e2d4',
+    B: '#3d4048', I: '#2c2f36', M: '#33363e', R: '#4c5058',
+    G: '#c8c8d0', Y: '#e8e8f0',
+    S: skin, K: skinDark, E: '#180f0a', F: '#ece6d8',
     U: '#16141a',
-  }, { eyeRow: 7, eyeClosed: '..OSKKSSSKKSO...', legStart: 19, legRows: COP_STRIDE });
+  }, { eyeRow: 6, eyeClosed: COP_BLINK, legStart: 20, legRows: COP_STRIDE });
 }
 
-// A passer-by: random hair and jacket, nothing fresh about them.
+// A passer-by, 20x30: hair with a shine line, everyday jacket with a
+// zipper, nothing fresh about them.
 const PED = [
-  '................',
-  '................',
-  '................',
-  '....OOOOOO......',
-  '...OAAAAAAO.....',
-  '..OASSSSSSAO....',
-  '..OSSSSSSSSO....',
-  '..OSFESSFESO....',
-  '..OSSSSSSSSO....',
-  '..OKSSSSSSKO....',
-  '...OOSSSSOO.....',
-  '..OJJJJJJJJOO...',
-  '.OJJJJJJJJJJJO..',
-  '.OJJJJJJJJJJJO..',
-  '.OJJJJJJJJJJJO..',
-  '.OIJJJJJJJJJIO..',
-  '.OSIJJJJJJJISO..',
-  '..OOPPPPPPPOO...',
-  '..OPPPO.OPPPO...',
-  '..OPPPO.OPPPO...',
-  '..OPPPO.OPPPO...',
-  '..OPPPO.OPPPO...',
-  '..OUUUO.OUUUO...',
-  '.OUUUUO.OUUUUO..',
+  '....................',
+  '....................',
+  '.....OOOOOOOOO......',
+  '....OAZAAAAAAAO.....',
+  '...OAAASSSSSSAAO....',
+  '...OSSSSSSSSSSSO....',
+  '...OSFFESSSFFESO....',
+  '...OSSSSSSSSSSSO....',
+  '...OKSSSSSSSSSKO....',
+  '....OKSSSSSSSKO.....',
+  '.....OOSSSSOO.......',
+  '....OJJJJJJJJO......',
+  '..OJJJJJZJJJJJJO....',
+  '.OJJJJJJZJJJJJJJO...',
+  '.OJJJJJJZJJJJJJJO...',
+  '.OJJJJJJZJJJJJJJO...',
+  '.OIJJJJJZJJJJJJIO...',
+  '.OIJJJJJJJJJJJJIO...',
+  '.OSIJJJJJJJJJJISO...',
+  '..OOPPPPPPPPPPOO....',
+  '...OPPPPO..OPPPPO...',
+  '...OPPPPO..OPPPPO...',
+  '...OPPPPO..OPPPPO...',
+  '...OPPPPO..OPPPPO...',
+  '...OPPPPO..OPPPPO...',
+  '...OPPPPO..OPPPPO...',
+  '...OUUUUO..OUUUUO...',
+  '..OUUUUUOO.OUUUUUO..',
+  '....................',
+  '....................',
 ];
 
-// Yard dog, running left. Flip at draw time for the other direction.
+const PED_STRIDE = [
+  '..OPPPPO....OPPPPO..',
+  '..OPPPPO....OPPPPO..',
+  '..OPPPPO....OPPPPO..',
+  '..OPPPPO....OPPPPO..',
+  '..OPPPPO....OPPPPO..',
+  '..OPPPPO....OPPPPO..',
+  '..OUUUUO....OUUUUO..',
+  '.OUUUUUO....OUUUUUO.',
+  '....................',
+  '....................',
+];
+
+const PED_BLINK = '...OSKKSSSKKSSSO....';
+
+export function makePedestrian(seed) {
+  const rng = makeRng(seed);
+  const [skin, skinDark] = pick(rng, SKIN_TONES.concat([['#e0b088', '#c09068']]));
+  const jacketHue = Math.floor(rng() * 360);
+  return makeFrames(PED, {
+    O: '#171310',
+    A: pick(rng, ['#2a2018', '#463222', '#181614', '#6a5a4a']),
+    Z: '#8a8f98',
+    S: skin, K: skinDark, E: '#180f0a', F: '#ece6d8',
+    J: hsl(jacketHue, 35, 45), I: hsl(jacketHue, 35, 28),
+    P: '#3a3a44',
+    U: '#4a3a28',
+  }, { eyeRow: 6, eyeClosed: PED_BLINK, legStart: 20, legRows: PED_STRIDE });
+}
+
+// Gallery manager: beret, black turtleneck, tan slacks, opinions.
+const MGR = PED.slice();
+MGR[2] = '....OOOOOOOOOO......';
+MGR[3] = '..OBBBBBBBBBBBO.....';
+MGR[4] = '...OBBSSSSSSSBO.....';
+
+export function makeManager(seed) {
+  const rng = makeRng(seed);
+  const [skin, skinDark] = pick(rng, SKIN_TONES.concat([['#e0b088', '#c09068']]));
+  return makeFrames(MGR, {
+    O: '#171310',
+    B: '#22222a',
+    Z: '#3a3a44',
+    S: skin, K: skinDark, E: '#180f0a', F: '#ece6d8',
+    J: '#1f1f26', I: '#141419',
+    P: '#9a8a68',
+    U: '#3a2c1e',
+  }, { eyeRow: 6, eyeClosed: PED_BLINK, legStart: 20, legRows: PED_STRIDE });
+}
+
+// Yard dog, 24x14: lean, ears up, red eye, collar, tail high. Facing
+// left; flip at draw time for the other direction.
 const DOG = [
-  '..OO..............',
-  '.ODDO.............',
-  'ODDDDO.........OO.',
-  'ODEDDO........ODDO',
-  '.OODDOOOOOOOOODDO.',
-  '..ODDDDDDDDDDDDO..',
-  '..OCDDDDDDDDDDO...',
-  '...ODDO..ODDO.....',
-  '...ODO....ODO.....',
-  '...OO......OO.....',
+  '...OO...................',
+  '..ODDO.............OO...',
+  '..ODDDO...........ODDO..',
+  '.ODDDDDO..........ODDO..',
+  '.ODEDDDO.........ODDO...',
+  '.ONDDDDOOOOOOOOOODDO....',
+  '..ODDCDDDDDDDDDDDDO.....',
+  '..OODCDDDDDDDDDDDDO.....',
+  '...ODDDDDDDDDDDDDO......',
+  '...ODDDOODDDDOODDO......',
+  '...ODDO..ODDO..ODO......',
+  '...ODO...ODO...ODO......',
+  '...OO....OO.....OO......',
+  '........................',
 ];
 
 const DOG_STRIDE = [
-  '..ODDO....ODDO....',
-  '..ODO......ODO....',
-  '..OO........OO....',
+  '..ODDDO..ODDDO...ODDO...',
+  '..ODO......ODO....ODO...',
+  '.ODO........ODO....ODO..',
+  '.OO..........OO.....OO..',
+  '........................',
 ];
 
 export function makeDog(seed) {
@@ -520,49 +656,8 @@ export function makeDog(seed) {
   return makeFrames(DOG, {
     O: '#0e0c0a',
     D: fur,
+    N: '#0a0908',
     E: '#ff5030',        // that eye catches the streetlight
     C: '#cc2233',        // collar
-  }, { legStart: 7, legRows: DOG_STRIDE });
-}
-
-const PED_STRIDE = [
-  '.OPPPO...OPPPO..',
-  '.OPPPO...OPPPO..',
-  '.OPPPO...OPPPO..',
-  '.OPPPO...OPPPO..',
-  '.OUUUO...OUUUO..',
-  'OUUUUO...OUUUUO.',
-];
-
-export function makePedestrian(seed) {
-  const rng = makeRng(seed);
-  const [skin, skinDark] = pick(rng, SKIN_TONES.concat([['#e0b088', '#c09068']]));
-  const jacketHue = Math.floor(rng() * 360);
-  return makeFrames(PED, {
-    O: '#14100c',
-    A: pick(rng, ['#2a2018', '#463222', '#181614', '#6a5a4a']),
-    S: skin, K: skinDark, E: '#180f0a', F: '#e8e2d4',
-    J: hsl(jacketHue, 35, 45), I: hsl(jacketHue, 35, 30),
-    P: '#3a3a44',
-    U: '#4a3a28',
-  }, { eyeRow: 7, eyeClosed: '..OSKKSSKKSO....', legStart: 18, legRows: PED_STRIDE });
-}
-
-// Gallery manager: beret, black turtleneck, tan slacks, opinions.
-const MGR = PED.slice();
-MGR[3] = '...OBBBBBBBO....';
-MGR[4] = '..OBBBBBBBBBO...';
-MGR[5] = '..OSSSSSSSSO....';
-
-export function makeManager(seed) {
-  const rng = makeRng(seed);
-  const [skin, skinDark] = pick(rng, SKIN_TONES.concat([['#e0b088', '#c09068']]));
-  return makeFrames(MGR, {
-    O: '#14100c',
-    B: '#22222a',
-    S: skin, K: skinDark, E: '#180f0a', F: '#e8e2d4',
-    J: '#1f1f26', I: '#15151a',
-    P: '#9a8a68',
-    U: '#3a2c1e',
-  }, { eyeRow: 7, eyeClosed: '..OSKKSSKKSO....', legStart: 18, legRows: PED_STRIDE });
+  }, { legStart: 9, legRows: DOG_STRIDE });
 }

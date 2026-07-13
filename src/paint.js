@@ -8,7 +8,7 @@
 import { W, H, text, centerText, rect, frame, panel, meter, makeCanvas, drawSurface, makePolaroid } from './gfx.js';
 import { COLORS, PED_LINES } from './data.js';
 import { makeRng, pick, irange } from './rng.js';
-import { makeKid, makeCop, makeDog, makePedestrian, renderSketch, renderPiece } from './gen.js';
+import { makeKid, makeCop, makeDog, makePedestrian, renderSketch, renderPiece, pieceShade } from './gen.js';
 import { makeScenery, drawSpriteFlip, idleFrame, walkFrame } from './scenery.js';
 import { addPiece, level } from './world.js';
 import { sfxSpray, sfxSiren, sfxWhistle, sfxBust, sfxPop, sfxTick, sfxBark, sfxRattle, sfxTwinkle, playBeat, startAmbience } from './audio.js';
@@ -166,7 +166,7 @@ export const paintScene = {
     if (s.regFlash) { s.regFlash.t -= dt; if (s.regFlash.t <= 0) s.regFlash = null; }
 
     // the kid drifts toward the cursor — feet, not teleports
-    const targetX = Math.max(30, Math.min(280, G.mouse.x - 8));
+    const targetX = Math.max(30, Math.min(276, G.mouse.x - 10));
     s.kidVel = (targetX - s.kidX) * Math.min(1, dt * 8);
     s.kidX += s.kidVel;
 
@@ -237,13 +237,13 @@ export const paintScene = {
       const d = s.dog;
       const speed = 55 + s.lvl * 4 + s.spot.danger * 3;
       d.x += d.dir * speed * dt;
-      const kidX = Math.max(30, Math.min(280, G.mouse.x - 8)) + 8;
-      if (!d.bit && !s.hiding && Math.abs(d.x + 9 - kidX) < 11) {
+      const kidX = Math.max(30, Math.min(276, G.mouse.x - 10)) + 10;
+      if (!d.bit && !s.hiding && Math.abs(d.x + 12 - kidX) < 13) {
         d.bit = true;
         return bust(G, this, 'dog');
       }
       if (Math.abs(d.x - W / 2) < 4) sfxBark();
-      if (d.x < -24 || d.x > W + 24) { s.dog = null; s.nextTrouble = this.troubleInterval(s, G); }
+      if (d.x < -30 || d.x > W + 30) { s.dog = null; s.nextTrouble = this.troubleInterval(s, G); }
     }
 
     // ---- pedestrians: just the neighborhood, watching ----
@@ -398,7 +398,7 @@ export const paintScene = {
     }
 
     // the kid ducks BEHIND cover, so he draws first when hiding
-    if (s.hiding) drawSpriteFlip(ctx, s.kid.idle[0], 12, 106, false);
+    if (s.hiding) drawSpriteFlip(ctx, s.kid.idle[0], 12, 100, false);
 
     // cover: a dumpster on the street and in the yard, a divider screen
     // at the gallery
@@ -421,17 +421,17 @@ export const paintScene = {
       const moving = Math.abs(s.kidVel) > 0.35;
       const cv = moving ? walkFrame(s.kid, s.pulse / 3) : idleFrame(s.kid, s.pulse / 6);
       const bob = moving ? 0 : (Math.sin(s.pulse * 0.4) > 0.5 ? 1 : 0);
-      drawSpriteFlip(ctx, cv, kx, 118 + bob, moving && s.kidVel < 0);
-      rect(ctx, kx + (G.mouse.x > kx + 8 ? 15 : -2), 130 + bob, 2, 5, sel.hex); // can in hand
+      drawSpriteFlip(ctx, cv, kx, 112 + bob, moving && s.kidVel < 0);
+      rect(ctx, kx + (G.mouse.x > kx + 10 ? 18 : -1), 132 + bob, 2, 5, sel.hex); // can in hand
     }
 
     if (s.ped) {
-      drawSpriteFlip(ctx, walkFrame(s.ped.sprite, s.pulse / 4), Math.round(s.ped.x), 138, s.ped.dir === -1);
+      drawSpriteFlip(ctx, walkFrame(s.ped.sprite, s.pulse / 4), Math.round(s.ped.x), 132, s.ped.dir === -1);
     }
     if (s.cop) {
       const standing = !s.cop.leaving && s.cop.x <= 240;
       const cv = standing ? idleFrame(s.copSprite, s.pulse / 6) : walkFrame(s.copSprite, s.pulse / 3.5);
-      drawSpriteFlip(ctx, cv, Math.round(s.cop.x), 138, s.cop.leaving);
+      drawSpriteFlip(ctx, cv, Math.round(s.cop.x), 132, s.cop.leaving);
       if (!s.cop.leaving && s.cop.x <= 290) {
         const flash = Math.sin(s.pulse * 2) > 0;
         text(ctx, 'HIDE!', Math.round(s.cop.x) - 8, 128, flash ? '#ff3030' : '#ffe040');
@@ -439,7 +439,7 @@ export const paintScene = {
     }
     if (s.dog) {
       const d = s.dog;
-      drawSpriteFlip(ctx, s.dogSprite.walk[Math.floor(s.pulse * 2.2) % 2], Math.round(d.x), 152, d.dir === 1);
+      drawSpriteFlip(ctx, s.dogSprite.walk[Math.floor(s.pulse * 2.2) % 2], Math.round(d.x), 150, d.dir === 1);
       const flash = Math.sin(s.pulse * 3) > 0;
       text(ctx, 'GRRR', Math.round(d.x), 142, flash ? '#ff3030' : '#ffe040');
     }
@@ -505,7 +505,6 @@ function burst(G, s, mx, my) {
 
   const color = s.bag[s.selected];
   const ctx = s.paintCv[1];
-  ctx.fillStyle = color.hex;
   let hit = 0, doneRid = 0;
   for (let dy = -r; dy <= r; dy++) {
     for (let dx = -r; dx <= r; dx++) {
@@ -516,6 +515,7 @@ function burst(G, s, mx, my) {
       const rid = s.piece.regions[i];
       if (!rid || s.piece.palette[rid].id !== color.id) continue; // wrong area: nothing sticks
       if (s.covered[i]) continue;
+      ctx.fillStyle = pieceShade(s.piece, rid, x, y);
       ctx.fillRect(x, y, 1, 1);
       s.covered[i] = 1;
       s.coveredCount++;

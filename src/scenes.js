@@ -213,9 +213,9 @@ const partnerScene = {
     for (let k = -1; k <= 1; k++) {
       const idx = ((Math.round(this.pos) + k) % n + n) % n;
       const p = this.cands[idx];
-      const yOff = (Math.round(this.pos) + k - this.pos) * 26 + ry + rh / 2 - 12;
+      const yOff = (Math.round(this.pos) + k - this.pos) * 34 + ry + rh / 2 - 15;
       drawSpriteFlip(ctx, idleFrame(this.sprites[idx], this.animT || 0, idx * 0.7), rx + 8, yOff, false);
-      text(ctx, p.tag, rx + 30, yOff + 9, k === 0 || this.locked ? '#fff' : '#666');
+      text(ctx, p.tag, rx + 34, yOff + 12, k === 0 || this.locked ? '#fff' : '#666');
     }
     ctx.restore();
     // pointer
@@ -436,8 +436,8 @@ const intermissionScene = {
     // your crew on the front roof, watching the city
     rect(ctx, 0, 172, W, 28, '#100c14');
     rect(ctx, 0, 172, W, 2, '#231a26');
-    drawSpriteFlip(ctx, idleFrame(this.kid, this.t, 0), 22, 149, false);
-    if (this.pal) drawSpriteFlip(ctx, idleFrame(this.pal, this.t, 1.2), 44, 149 + (Math.sin(this.t * 1.4) > 0.7 ? 1 : 0), false);
+    drawSpriteFlip(ctx, idleFrame(this.kid, this.t, 0), 22, 143, false);
+    if (this.pal) drawSpriteFlip(ctx, idleFrame(this.pal, this.t, 1.2), 46, 143 + (Math.sin(this.t * 1.4) > 0.7 ? 1 : 0), false);
     // a pigeon keeping its distance
     const px = 76 + Math.floor(Math.sin(this.t * 0.7) * 3);
     rect(ctx, px, 168, 4, 3, '#8a8a96'); rect(ctx, px + 3, 166, 2, 2, '#8a8a96');

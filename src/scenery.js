@@ -12,6 +12,17 @@ import { sfxWhoosh, sfxClink } from './audio.js';
 // piece surface position (matches paint.js)
 const SX = 28, SY = 26, SW = 264, SH = 106;
 
+// vertical raster gradient, one row at a time — arcade skies
+function vgrad(c, x, y, w, h, hexTop, hexBot) {
+  const pa = [parseInt(hexTop.slice(1, 3), 16), parseInt(hexTop.slice(3, 5), 16), parseInt(hexTop.slice(5, 7), 16)];
+  const pb = [parseInt(hexBot.slice(1, 3), 16), parseInt(hexBot.slice(3, 5), 16), parseInt(hexBot.slice(5, 7), 16)];
+  for (let ry = 0; ry < h; ry++) {
+    const t = ry / Math.max(1, h - 1);
+    const col = '#' + pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, '0')).join('');
+    rect(c, x, y + ry, w, 1, col);
+  }
+}
+
 export function drawSpriteFlip(ctx, cv, x, y, flip) {
   if (flip) {
     ctx.save();
@@ -85,8 +96,8 @@ function drawStars(ctx, st) {
 
 function buildStreet(bd, c, st) {
   const rng = st.rng;
-  // sky
-  rect(c, 0, 0, W, 14, '#0b0b1c');
+  // sky, deep to horizon-glow
+  vgrad(c, 0, 0, W, 14, '#050510', '#181432');
   // water tower on the roofline
   rect(c, 248, 4, 14, 8, '#241c18'); rect(c, 250, 2, 10, 2, '#2c221c');
   rect(c, 249, 12, 2, 3, '#241c18'); rect(c, 259, 12, 2, 3, '#241c18');
@@ -111,8 +122,16 @@ function buildStreet(bd, c, st) {
   rect(c, 0, 132, W, 8, '#3c3c44');
   for (let sx = 0; sx < W; sx += 24) rect(c, sx, 132, 1, 8, '#30303a');
   rect(c, 0, 140, W, 3, '#26262e');
-  rect(c, 0, 143, W, 57, '#1b1b21');
+  vgrad(c, 0, 143, W, 57, '#20202a', '#131318');
   ctx_dashes(c);
+  // pools of lamplight on the sidewalk
+  for (const px of [26, 298]) {
+    c.fillStyle = '#4c4a4e';
+    for (let dy = 0; dy < 8; dy++) {
+      const ww = Math.round(14 * Math.sqrt(1 - Math.pow(dy / 8 - 0.5, 2) * 4) / 2) + 4;
+      for (let dx = -ww; dx <= ww; dx += 2) c.fillRect(px + dx + (dy % 2), 132 + dy, 1, 1);
+    }
+  }
   // streetlight poles flanking the wall, cones drawn dynamic
   for (const px of [24, 296]) {
     rect(c, px, 70, 2, 62, '#383840');
@@ -120,9 +139,9 @@ function buildStreet(bd, c, st) {
     const lx = px > W / 2 ? px - 7 : px + 9;
     rect(c, lx, 71, 4, 3, '#ffe9a0');
   }
-  // hydrant
-  rect(c, 282, 150, 5, 8, '#8a2820'); rect(c, 283, 148, 3, 2, '#8a2820');
-  rect(c, 281, 152, 7, 2, '#8a2820');
+  // hydrant on the sidewalk
+  rect(c, 246, 133, 5, 7, '#8a2820'); rect(c, 247, 131, 3, 2, '#a03828');
+  rect(c, 245, 135, 7, 2, '#8a2820');
   // trash can + empties
   rect(c, 300, 146, 11, 13, '#4a4e58'); rect(c, 299, 144, 13, 3, '#3c404a');
   rect(c, 301, 148, 2, 9, '#3e424c');
@@ -207,8 +226,8 @@ function buildStreet(bd, c, st) {
       rect(ctx, car.dir === 1 ? cx - 1 : cx + 39, 151, 2, 2, '#c03030');
     }
     // hangout kids by the parked car + boombox on the hood
-    drawSpriteFlip(ctx, idleFrame(a.kidA, t, 0), 68, 122 + (Math.sin(t * 2.1) > 0.6 ? 1 : 0), false);
-    drawSpriteFlip(ctx, idleFrame(a.kidB, t, 1.4), 90, 122 + (Math.sin(t * 1.7 + 2) > 0.6 ? 1 : 0), true);
+    drawSpriteFlip(ctx, idleFrame(a.kidA, t, 0), 38, 118 + (Math.sin(t * 2.1) > 0.6 ? 1 : 0), false);
+    drawSpriteFlip(ctx, idleFrame(a.kidB, t, 1.4), 112, 118 + (Math.sin(t * 1.7 + 2) > 0.6 ? 1 : 0), true);
     rect(ctx, 82, 138, 12, 7, '#22242c');
     rect(ctx, 83, 139, 3, 3, '#3a3e48'); rect(ctx, 90, 139, 3, 3, '#3a3e48');
     rect(ctx, 84 + Math.floor((Math.sin(t * 6) + 1) * 1.5), 143, 1, 1, '#ffe040'); // vu light
@@ -221,10 +240,10 @@ function buildStreet(bd, c, st) {
     }
     // the drinker, holding it down by the trash can
     const sway = Math.sin(t * 0.9) > 0.7 ? 1 : 0;
-    drawSpriteFlip(ctx, idleFrame(a.drinker, t, 2.2), 306 + sway, 138, true);
+    drawSpriteFlip(ctx, idleFrame(a.drinker, t, 2.2), 300 + sway, 130, true);
     const up = a.bottleUp > 0;
-    rect(ctx, up ? 304 : 302, up ? 144 : 152, 2, 5, '#8a6428');
-    rect(ctx, up ? 304 : 302, up ? 142 : 150, 2, 2, '#5c421c');
+    rect(ctx, up ? 299 : 297, up ? 141 : 149, 2, 5, '#8a6428');
+    rect(ctx, up ? 299 : 297, up ? 139 : 147, 2, 2, '#5c421c');
   };
 }
 
@@ -238,7 +257,7 @@ function buildYard(bd, c, st) {
   const rng = st.rng;
   rect(c, 0, 0, W, H, '#101018'); // yard dark, everywhere first
   // sky + moon
-  rect(c, 0, 0, W, 16, '#0a0a18');
+  vgrad(c, 0, 0, W, 16, '#04040e', '#151230');
   for (let dy = -3; dy <= 3; dy++) {
     const ww = Math.round(Math.sqrt(9 - dy * dy));
     rect(c, 42 - ww, 8 + dy, ww * 2, 1, '#e8e4c8');
@@ -264,7 +283,7 @@ function buildYard(bd, c, st) {
   rect(c, 0, 134, W, 2, '#585c66');
   rect(c, 0, 138, W, 1, '#40444e');
   for (let sx = 2; sx < W; sx += 14) rect(c, sx, 136, 8, 4, '#2a2a32');
-  rect(c, 0, 142, W, 58, '#20202a');
+  vgrad(c, 0, 142, W, 58, '#242430', '#15151c');
   ctx_gravel(c, rng);
   // a second track in the foreground
   rect(c, 0, 158, W, 2, '#444852');
@@ -327,9 +346,9 @@ function buildYard(bd, c, st) {
     if (a.gNext <= 0) {
       const moving = true;
       const cv = moving ? walkFrame(a.guard, t) : idleFrame(a.guard, t);
-      drawSpriteFlip(ctx, cv, a.gx, 138, a.gdir === 1);
+      drawSpriteFlip(ctx, cv, a.gx, 132, a.gdir === 1);
       // flashlight
-      const fx = a.gdir === 1 ? a.gx + 16 : a.gx - 10;
+      const fx = a.gdir === 1 ? a.gx + 20 : a.gx - 10;
       ctx.globalAlpha = 0.12;
       rect(ctx, fx, 152, 10 * a.gdir, 6, '#ffe9a0');
       rect(ctx, a.gdir === 1 ? fx + 10 : fx - 14, 154, 14 * a.gdir, 4, '#ffe9a0');
@@ -356,9 +375,9 @@ function buildGallery(bd, c, st) {
     rect(c, lx, 10, 6, 4, '#2c2c32');
     rect(c, lx + 1, 14, 4, 1, '#ffe9a0');
   }
-  // walls
-  rect(c, 0, 10, W, 122, '#eae7e0');
-  rect(c, 0, 128, W, 2, '#d5d0c5');
+  // walls, lit from the track heads down
+  vgrad(c, 0, 10, W, 122, '#f2efe8', '#ddd8cc');
+  rect(c, 0, 128, W, 2, '#cfc9bc');
   // the canvas (our surface)
   drawSurface(c, SX, SY, SW, SH, 'gallery', rng);
   // title card
@@ -384,9 +403,16 @@ function buildGallery(bd, c, st) {
   // moon in the window
   rect(c, 310, 30, 4, 4, '#e8e4c8'); rect(c, 311, 29, 2, 6, '#e8e4c8');
   // wood floor (before the furniture that stands on it)
-  rect(c, 0, 132, W, 68, '#7a5c40');
+  vgrad(c, 0, 132, W, 68, '#8a6a4a', '#5f4530');
   for (let fy = 138; fy < 200; fy += 8) rect(c, 0, fy, W, 1, '#6a4e36');
   for (let fx = 20; fx < W; fx += 48) rect(c, fx, 132, 1, 68, '#6a4e36');
+  // sheen where the spots hit the boards
+  c.fillStyle = '#9c7a54';
+  for (const lx of [70, 160, 250]) {
+    for (let dy = 0; dy < 5; dy++) {
+      for (let dx = -10 + dy; dx <= 10 - dy; dx += 2) c.fillRect(lx + 2 + dx + (dy % 2), 133 + dy, 1, 1);
+    }
+  }
   // pedestal with a blue period sculpture
   rect(c, 8, 96, 14, 36, '#f2efe8'); frame(c, 8, 96, 14, 36, '#cdc8bc');
   rect(c, 11, 86, 8, 10, '#3a5c9c'); rect(c, 13, 82, 4, 5, '#4a6cac'); rect(c, 10, 90, 10, 3, '#2a4c8c');
@@ -443,10 +469,10 @@ function buildGallery(bd, c, st) {
     // the manager drifts, considers, hmms
     const moving = a.pause <= 0;
     const cv = moving ? walkFrame(a.mgr, t) : idleFrame(a.mgr, t);
-    drawSpriteFlip(ctx, cv, a.mx, 132, a.mdir === 1);
+    drawSpriteFlip(ctx, cv, a.mx, 126, a.mdir === 1);
     // wine glass in hand
-    const gx = a.mdir === 1 ? a.mx + 14 : a.mx - 1;
-    rect(ctx, gx, 146, 2, 2, '#e8d8f0'); rect(ctx, gx, 148, 1, 2, '#d8e8f0');
+    const gx = a.mdir === 1 ? a.mx + 18 : a.mx - 1;
+    rect(ctx, gx, 148, 2, 2, '#e8d8f0'); rect(ctx, gx, 150, 1, 2, '#d8e8f0');
     if (a.hmm > 0) {
       ctx.globalAlpha = Math.min(1, a.hmm);
       text(ctx, 'HMM.', Math.round(a.mx) - 2, 120, '#8a857a');
