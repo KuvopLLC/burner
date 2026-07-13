@@ -4,9 +4,9 @@
 import { SPOTS } from './data.js';
 import { makeRng } from './rng.js';
 
-export function newRun(tag, stats, seed) {
+export function newRun(tag, seed) {
   return {
-    tag, stats, seed,
+    tag, seed,
     rng: makeRng(seed ^ 0xBEEF),
     strikes: 0,
     pieces: [],       // book entries

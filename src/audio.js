@@ -61,9 +61,9 @@ function hat(t, open) {
   s.start(t); s.stop(t + dur + 0.01);
 }
 
-function square(t, freq, dur, vol = 0.12) {
+function tone(t, freq, dur, vol = 0.12, type = 'square') {
   const o = ac.createOscillator(), g = ac.createGain();
-  o.type = 'square';
+  o.type = type;
   o.frequency.value = freq;
   g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
@@ -71,11 +71,13 @@ function square(t, freq, dur, vol = 0.12) {
   o.start(t); o.stop(t + dur + 0.02);
 }
 
+function square(t, freq, dur, vol = 0.12) { tone(t, freq, dur, vol, 'square'); }
+
 const MINOR_PENT = [0, 3, 5, 7, 10];
 function noteFreq(root, semis) { return root * Math.pow(2, semis / 12); }
 
 // Seeded 2-bar (32 sixteenth-steps) pattern
-function makePattern(seed) {
+function makePattern(seed, mellow) {
   const rng = makeRng(seed);
   const root = pick(rng, [55, 58.27, 61.74, 49]); // A1, Bb1, B1, G1
   const kicks = new Array(32).fill(0);
@@ -86,26 +88,29 @@ function makePattern(seed) {
   for (let bar = 0; bar < 2; bar++) {
     const o = bar * 16;
     kicks[o] = 1;
-    kicks[o + (rng() < 0.5 ? 7 : 10)] = 1;
-    if (rng() < 0.5) kicks[o + 3] = 1;
+    if (!mellow) kicks[o + (rng() < 0.5 ? 7 : 10)] = 1;
+    if (!mellow && rng() < 0.5) kicks[o + 3] = 1;
     snares[o + 4] = 1; snares[o + 12] = 1;
-    if (rng() < 0.3) snares[o + 15] = 1; // ghost
+    if (!mellow && rng() < 0.3) snares[o + 15] = 1; // ghost
   }
-  for (let i = 0; i < 32; i += 2) hats[i] = rng() < 0.12 ? 2 : 1; // 2 = open
+  for (let i = 0; i < 32; i += 2) hats[i] = (!mellow && rng() < 0.12) ? 2 : 1;
+  if (mellow) for (let i = 0; i < 32; i += 2) if (i % 4 === 2) hats[i] = 0;
   for (let i = 0; i < 32; i += 4) {
     if (rng() < 0.8) bass[i] = noteFreq(root, pick(rng, MINOR_PENT));
-    if (rng() < 0.3) bass[i + 2] = noteFreq(root, pick(rng, MINOR_PENT));
+    if (!mellow && rng() < 0.3) bass[i + 2] = noteFreq(root, pick(rng, MINOR_PENT));
   }
   for (let i = 0; i < 32; i++) {
-    if (rng() < 0.12) lead[i] = noteFreq(root * 4, pick(rng, MINOR_PENT));
+    if (rng() < (mellow ? 0.08 : 0.12)) lead[i] = noteFreq(root * 4, pick(rng, MINOR_PENT));
   }
-  return { kicks, snares, hats, bass, lead, bpm: 88 + Math.floor(rng() * 10) };
+  const bpm = mellow ? 68 + Math.floor(rng() * 8) : 88 + Math.floor(rng() * 10);
+  return { kicks, snares, hats, bass, lead, bpm };
 }
 
-export function playBeat(seed) {
+export function playBeat(seed, mellow = false) {
   if (!ac) return;
   stopBeat();
-  const pat = makePattern(seed);
+  stopAmbience();
+  const pat = makePattern(seed, mellow);
   const stepDur = 60 / pat.bpm / 4;
   let step = 0;
   let nextTime = ac.currentTime + 0.05;
@@ -116,8 +121,8 @@ export function playBeat(seed) {
       if (pat.kicks[s]) kick(nextTime);
       if (pat.snares[s]) snare(nextTime);
       if (pat.hats[s]) hat(nextTime, pat.hats[s] === 2);
-      if (pat.bass[s]) square(nextTime, pat.bass[s], stepDur * 1.8, 0.14);
-      if (pat.lead[s]) square(nextTime, pat.lead[s], stepDur * 0.9, 0.05);
+      if (pat.bass[s]) tone(nextTime, pat.bass[s], stepDur * 1.8, mellow ? 0.10 : 0.14, mellow ? 'triangle' : 'square');
+      if (pat.lead[s]) tone(nextTime, pat.lead[s], stepDur * (mellow ? 1.6 : 0.9), 0.05, mellow ? 'sine' : 'square');
       nextTime += stepDur;
       step++;
     }
@@ -127,6 +132,36 @@ export function playBeat(seed) {
 
 export function stopBeat() {
   if (beat) { clearInterval(beat.timer); beat = null; }
+}
+
+// ---- Ambience -------------------------------------------------------------
+// The city is never quiet. Trains rumble; streets hum.
+
+let amb = null;
+
+export function startAmbience(kind) {
+  if (!ac) return;
+  stopAmbience();
+  if (kind === 'gallery') return; // hushed. you can hear the wine pour.
+  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  s.buffer = getNoise(); s.loop = true;
+  f.type = 'lowpass';
+  f.frequency.value = kind === 'train' ? 95 : 150;
+  g.gain.value = kind === 'train' ? 0.09 : 0.035;
+  // slow swell so the rumble breathes
+  const lfo = ac.createOscillator(), lg = ac.createGain();
+  lfo.frequency.value = 0.13;
+  lg.gain.value = kind === 'train' ? 0.04 : 0.012;
+  lfo.connect(lg).connect(g.gain);
+  s.connect(f).connect(g).connect(master);
+  s.start(); lfo.start();
+  amb = { s, lfo };
+}
+
+export function stopAmbience() {
+  if (!amb) return;
+  try { amb.s.stop(); amb.lfo.stop(); } catch (e) { /* already stopped */ }
+  amb = null;
 }
 
 // ---- SFX ----------------------------------------------------------------
@@ -186,6 +221,45 @@ export function sfxBust() {
   if (!ac) return;
   const t = ac.currentTime;
   for (let i = 0; i < 5; i++) square(t + i * 0.09, 300 - i * 40, 0.08, 0.2);
+}
+
+export function sfxRattle() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  // the ball in the can
+  tone(t, 2100, 0.02, 0.10);
+  tone(t + 0.06, 1800, 0.02, 0.10);
+  tone(t + 0.11, 2300, 0.02, 0.08);
+}
+
+export function sfxTwinkle() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  tone(t, 1900, 0.07, 0.05, 'sine');
+  tone(t + 0.06, 2600, 0.10, 0.05, 'sine');
+}
+
+export function sfxWhoosh() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  s.buffer = getNoise();
+  f.type = 'bandpass'; f.Q.value = 1.2;
+  f.frequency.setValueAtTime(250, t);
+  f.frequency.linearRampToValueAtTime(900, t + 0.25);
+  f.frequency.linearRampToValueAtTime(300, t + 0.55);
+  g.gain.setValueAtTime(0.0, t);
+  g.gain.linearRampToValueAtTime(0.07, t + 0.2);
+  g.gain.linearRampToValueAtTime(0.0, t + 0.6);
+  s.connect(f).connect(g).connect(master);
+  s.start(t); s.stop(t + 0.65);
+}
+
+export function sfxClink() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  tone(t, 2400, 0.05, 0.05, 'sine');
+  tone(t + 0.02, 3300, 0.08, 0.04, 'sine');
 }
 
 export function sfxBark() {

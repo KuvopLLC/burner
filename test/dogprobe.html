@@ -19,7 +19,6 @@ setInterval(() => {
   const sc = G.scene, s = sc.s;
   if (G.sceneName === 'title') key('Enter');
   else if (G.sceneName === 'name') { for (const c of 'ZK') key(c); key('Enter'); }
-  else if (G.sceneName === 'skills') { if (sc.left > 0) { key('ArrowRight'); key('ArrowDown'); } else key('Enter'); }
   else if (G.sceneName === 'partner') { if (sc.locked && sc.lockT > 0.7) key('Enter'); else if (!sc.locked) key('Enter'); }
   else if (G.sceneName === 'sketch') { if (sc.t > 1.1) key('Enter'); }
   else if (G.sceneName === 'map') key('Enter');

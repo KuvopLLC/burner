@@ -20,7 +20,6 @@ fit();
 const G = {
   frames: 0,
   run: null,
-  pendingTag: '',
   bookReturn: null,
   mission: null,
   mouse: { x: 0, y: 0, down: false },

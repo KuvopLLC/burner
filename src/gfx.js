@@ -92,22 +92,67 @@ export function makeCanvas(w, h) {
   return [cv, c];
 }
 
-// Brick wall / train / canvas backgrounds for the paint scene & polaroids
-export function drawSurface(ctx, x, y, w, h, kind, rng) {
+// Brick wall / subway car / gallery canvas — the surface you paint,
+// shared by the paint scene backdrop and the result polaroid.
+const LINE_COLORS = { '1': '#ee352e', '2/5': '#ee352e', '4': '#00933c', '6': '#00a65c', 'D': '#ff6319' };
+
+export function drawSurface(ctx, x, y, w, h, kind, rng, line) {
   if (kind === 'train') {
-    rect(ctx, x, y, w, h, '#9aa0a8');
-    rect(ctx, x, y, w, 6, '#6a7078');                 // roofline
-    rect(ctx, x, y + h - 10, w, 10, '#5a6068');       // skirt
-    for (let i = 0; i < 4; i++) {                      // windows
-      rect(ctx, x + 14 + i * ((w - 28) / 4), y + 12, (w - 28) / 4 - 8, 16, '#20242c');
+    const lc = LINE_COLORS[line] || '#ee352e';
+    // roof + vents
+    rect(ctx, x, y, w, 6, '#5c6168');
+    for (let i = 0; i < 3; i++) rect(ctx, x + 30 + i * (w / 3), y + 1, 22, 3, '#4c5057');
+    // ribbed stainless body
+    rect(ctx, x, y + 6, w, 86, '#a9aeb6');
+    ctx.fillStyle = '#a0a5ad';
+    for (let rx = 4; rx < w; rx += 7) ctx.fillRect(x + rx, y + 6, 1, 86);
+    rect(ctx, x, y + 78, w, 14, '#969ba3'); // lower shade
+    // window band: windows + two double doors
+    rect(ctx, x + 6, y + 14, w - 12, 22, '#171a20');
+    const winAt = [14, 96, 136, 216];
+    for (const wx of winAt) {
+      if (wx + 32 > w - 12) continue;
+      for (let k = 0; k < 2; k++) {
+        rect(ctx, x + wx + k * 17, y + 16, 14, 18, '#232833');
+        rect(ctx, x + wx + k * 17, y + 16, 14, 2, '#39424e'); // night reflection
+        frame(ctx, x + wx + k * 17, y + 16, 14, 18, '#3a4048');
+      }
     }
-    rect(ctx, x, y + 34, w, 2, '#787e86');            // beltline
+    for (const dx of [58, 178]) {
+      if (dx + 26 > w) continue;
+      rect(ctx, x + dx, y + 14, 26, 66, '#8d939b');            // door leaves
+      rect(ctx, x + dx + 12, y + 14, 2, 66, '#5b6068');        // center gap
+      rect(ctx, x + dx + 2, y + 16, 9, 16, '#20242e');         // door windows
+      rect(ctx, x + dx + 15, y + 16, 9, 16, '#20242e');
+    }
+    // beltline stripe in the route color, bullet, car number
+    rect(ctx, x, y + 38, w, 3, lc);
+    ctx.fillStyle = lc;
+    for (let dy = -5; dy <= 5; dy++) {
+      const ww = Math.round(Math.sqrt(25 - Math.min(25, dy * dy)));
+      ctx.fillRect(x + 22 - ww, y + 58 + dy, ww * 2 + 1, 1);
+    }
+    text(ctx, (line || '2')[0], x + 20, y + 55, '#fff');
+    text(ctx, 'N 4721', x + w - 44, y + 56, '#4a5058');
+    // skirt + undercarriage with bogies
+    rect(ctx, x, y + 92, w, 6, '#3f434a');
+    rect(ctx, x, y + 98, w, 8, '#101216');
+    for (const bx of [44, w - 72]) {
+      rect(ctx, x + bx, y + 98, 30, 5, '#181a20');
+      for (const wx of [3, 19]) {
+        rect(ctx, x + bx + wx, y + 99, 8, 7, '#1c1e24');
+        rect(ctx, x + bx + wx + 3, y + 102, 2, 2, '#3c4048'); // hub
+      }
+    }
   } else if (kind === 'gallery') {
-    rect(ctx, x, y, w, h, '#e8e4da');
-    frame(ctx, x + 4, y + 4, w - 8, h - 8, '#b0a890');
+    rect(ctx, x, y, w, h, '#eae7e0');                  // gallery wall
+    rect(ctx, x + 8, y + 4, w - 14, h - 10, '#c9c4b8'); // canvas shadow
+    rect(ctx, x + 6, y + 2, w - 14, h - 10, '#f5f2ea'); // stretched canvas
+    frame(ctx, x + 6, y + 2, w - 14, h - 10, '#b8ab90');
+    rect(ctx, x + w - 14, y + h - 14, 3, 3, '#cc2233'); // red dot. sold.
   } else { // wall
-    rect(ctx, x, y, w, h, '#7a4a3a');
-    ctx.fillStyle = '#66392c';
+    rect(ctx, x, y, w, h, '#6e4536');
+    ctx.fillStyle = '#55322a';
     for (let row = 0; row * 8 < h; row++) {
       const off = (row % 2) * 12;
       for (let col = -1; col * 24 < w + 24; col++) {
@@ -116,10 +161,25 @@ export function drawSurface(ctx, x, y, w, h, kind, rng) {
       ctx.fillRect(Math.round(x), Math.round(y + row * 8), w, 1);
     }
     if (rng) {
+      // brick variance, grime, and a couple of cracks
+      for (let i = 0; i < 26; i++) {
+        const bx = Math.floor(rng() * (w / 24)) * 24 + (Math.floor(rng() * (h / 8)) % 2) * 12;
+        const by = Math.floor(rng() * (h / 8)) * 8;
+        rect(ctx, x + bx + 1, y + by + 1, 23, 7, rng() < 0.5 ? '#5e392c' : '#7d5040');
+      }
       ctx.fillStyle = '#8a5a48';
       for (let i = 0; i < 40; i++) {
         ctx.fillRect(Math.round(x + rng() * w), Math.round(y + rng() * h), 2, 1);
       }
+      ctx.fillStyle = '#3a241e';
+      for (let c = 0; c < 2; c++) {
+        let cx = x + 30 + rng() * (w - 60), cy = y;
+        while (cy < y + h - 4) {
+          ctx.fillRect(Math.round(cx), Math.round(cy), 1, 3);
+          cy += 3; cx += (rng() - 0.5) * 4;
+        }
+      }
+      rect(ctx, x, y + h - 3, w, 3, '#4a2e24'); // grime line at the base
     }
   }
 }

@@ -1,20 +1,40 @@
-// scenes.js — everything around the paint scene: title, tag entry, skills,
+// scenes.js — everything around the paint scene: title, tag entry,
 // the partner tumbler, the sketch, the Bronx map, the black book,
 // the between-nights breather, game over.
 
 import { W, H, text, textWidth, centerText, rect, frame, panel, dither } from './gfx.js';
-import { SKILLS, SKILL_POINTS, PARTNERS, SPOTS } from './data.js';
+import { PARTNERS, SPOTS } from './data.js';
 import { makeRng, irange } from './rng.js';
 import { makePiece, renderPiece, renderSketch, makeKid } from './gen.js';
 import { newRun, availableSpots, level, loadHighScores, saveHighScore } from './world.js';
 import { paintScene, resultScene, drawCrewCorner } from './paint.js';
+import { drawSpriteFlip, idleFrame } from './scenery.js';
 import { buildBronxMap, MAP_H } from './bronx.js';
-import { playBeat, stopBeat, sfxPop, sfxTick } from './audio.js';
+import { playBeat, stopBeat, stopAmbience, sfxPop, sfxTick } from './audio.js';
 
 function hashStr(s) {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return h >>> 0;
+}
+
+// twinkling star helper for the menu scenes
+function drawTwinkles(ctx, t, seed, count, y0, y1) {
+  const rng = makeRng(seed);
+  ctx.fillStyle = '#f0e8b0';
+  for (let i = 0; i < count; i++) {
+    const x = Math.floor(rng() * W), y = y0 + Math.floor(rng() * (y1 - y0));
+    const ph = rng() * 6.28, sp = 1.5 + rng() * 2.5, big = rng() < 0.2;
+    const tw = Math.sin(t * sp + ph);
+    if (tw < -0.2) continue;
+    ctx.globalAlpha = 0.3 + tw * 0.55;
+    ctx.fillRect(x, y, 1, 1);
+    if (big && tw > 0.75) {
+      ctx.fillRect(x - 1, y, 1, 1); ctx.fillRect(x + 1, y, 1, 1);
+      ctx.fillRect(x, y - 1, 1, 1); ctx.fillRect(x, y + 1, 1, 1);
+    }
+  }
+  ctx.globalAlpha = 1;
 }
 
 // ---- TITLE ----------------------------------------------------------------
@@ -27,104 +47,113 @@ const titleScene = {
     for (let i = 0; i < 14; i++) {
       this.drips.push({ x: 92 + rng() * 136, y: 70, len: 4 + rng() * 14, sp: 3 + rng() * 6 });
     }
+    // a skyline for the logo to burn over
+    this.bldgs = [];
+    let bx = 0;
+    while (bx < W) {
+      const bw = 18 + Math.floor(rng() * 26);
+      this.bldgs.push({ x: bx, w: bw, h: 10 + Math.floor(rng() * 16), seed: Math.floor(rng() * 1e9) });
+      bx += bw + 2;
+    }
+    this.trainX = -180;
     this.t = 0;
     this.hs = loadHighScores();
   },
   update(G, dt) {
     this.t += dt;
     for (const d of this.drips) if (d.y - 70 < d.len) d.y += d.sp * dt;
+    this.trainX += dt * 46;
+    if (this.trainX > W + 60) this.trainX = -200;
   },
   key(G, e) {
     if (e.type === 'down' && e.key === 'Enter') G.go('name');
   },
   draw(G, ctx) {
     rect(ctx, 0, 0, W, H, '#0c0c1e');
-    // el track silhouette
+    drawTwinkles(ctx, this.t, 4242, 34, 0, 110);
+    // skyline
+    for (const b of this.bldgs) {
+      rect(ctx, b.x, 158 - b.h, b.w, b.h, '#14141f');
+      const wrng = makeRng(b.seed);
+      for (let wy = 162 - b.h; wy < 154; wy += 6) {
+        for (let wx = b.x + 3; wx < b.x + b.w - 3; wx += 5) {
+          if (wrng() < 0.24) rect(ctx, wx, wy, 2, 3, '#c8a04a');
+        }
+      }
+    }
+    // the el, and a train running it with lit windows
     rect(ctx, 0, 160, W, 3, '#1e1e2c');
     for (let x = 8; x < W; x += 22) rect(ctx, x, 163, 4, 37, '#1e1e2c');
+    const tx = Math.round(this.trainX);
+    for (let carN = 0; carN < 2; carN++) {
+      const cx = tx + carN * 78;
+      rect(ctx, cx, 150, 74, 10, '#23232e');
+      for (let wx = 4; wx < 70; wx += 8) rect(ctx, cx + wx, 152, 4, 4, '#8a7a48');
+      rect(ctx, cx + (carN === 0 ? 72 : -1), 154, 2, 2, '#ffefc0');
+    }
     centerText(ctx, 'KUVOP PRESENTS', 26, '#666');
     centerText(ctx, 'BURNER', 42, '#ff3060', 4);
+    // glint sweeping the logo
+    const sweep = (this.t % 4) / 4 * (W - 120) + 60;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(sweep, 40, 9, 32);
+    ctx.clip();
+    centerText(ctx, 'BURNER', 42, '#ffd7e2', 4);
+    ctx.restore();
     ctx.fillStyle = '#ff3060';
     for (const d of this.drips) ctx.fillRect(Math.round(d.x), 70, 2, Math.round(d.y - 70) + 2);
     centerText(ctx, 'GET UP. STAY UP.', 100, '#ffe040');
     if (this.hs.length) {
-      centerText(ctx, '-- KINGS OF THE LINE --', 118, '#888');
-      this.hs.slice(0, 4).forEach((h, i) => {
-        centerText(ctx, `${h.tag}  ${h.piecesUp} UP`, 128 + i * 10, i === 0 ? '#ffe040' : '#aaa');
+      centerText(ctx, '-- KINGS OF THE LINE --', 114, '#888');
+      this.hs.slice(0, 3).forEach((h, i) => {
+        centerText(ctx, `${h.tag}  ${h.piecesUp} UP`, 124 + i * 10, i === 0 ? '#ffe040' : '#aaa');
       });
     } else {
-      centerText(ctx, 'ARROWS + ENTER: MENUS   MOUSE: PAINT', 124, '#888');
-      centerText(ctx, '1-7: CANS   SPACE: HIDE FROM COPS', 136, '#888');
+      centerText(ctx, '[X] SPRAY   ARROWS: CANS   [SPACE] HIDE', 124, '#888');
     }
-    if (Math.sin(this.t * 4) > -0.2) centerText(ctx, '[ENTER] START WRITING', 174, '#fff');
+    if (Math.sin(this.t * 4) > -0.2) centerText(ctx, '[ENTER] START WRITING', 178, '#fff');
   },
 };
 
 // ---- NAME -----------------------------------------------------------------
 
 const nameScene = {
-  enter() { this.tag = ''; this.t = 0; },
-  update(G, dt) { this.t += dt; },
+  enter() { this.tag = ''; this.t = 0; this.preview = null; this.stale = true; },
+  update(G, dt) {
+    this.t += dt;
+    if (this.stale) {
+      this.stale = false;
+      this.preview = this.tag.length >= 2
+        ? renderPiece(makePiece(this.tag, hashStr(this.tag) + 7, null)) : null;
+    }
+  },
   key(G, e) {
     if (e.type !== 'down') return;
     const k = e.key.toUpperCase();
-    if (/^[A-Z0-9]$/.test(k) && this.tag.length < 8) { this.tag += k; sfxTick(); }
-    if (e.key === 'Backspace') this.tag = this.tag.slice(0, -1);
+    if (/^[A-Z0-9]$/.test(k) && this.tag.length < 8) { this.tag += k; this.stale = true; sfxTick(); }
+    if (e.key === 'Backspace') { this.tag = this.tag.slice(0, -1); this.stale = true; }
     if (e.key === 'Enter' && this.tag.length >= 2) {
-      G.pendingTag = this.tag;
-      G.go('skills');
-    }
-  },
-  draw(G, ctx) {
-    rect(ctx, 0, 0, W, H, '#0c0c1e');
-    centerText(ctx, 'EVERY WRITER NEEDS A NAME', 40, '#888');
-    centerText(ctx, 'WRITE YOUR TAG', 54, '#fff', 2);
-    const shown = this.tag + (Math.sin(this.t * 6) > 0 ? '_' : ' ');
-    centerText(ctx, shown, 96, '#ffe040', 3);
-    centerText(ctx, '2-8 LETTERS. SHORT NAMES GO UP FASTER.', 150, '#888');
-    if (this.tag.length >= 2) centerText(ctx, '[ENTER] THAT\'S ME', 170, '#fff');
-  },
-};
-
-// ---- SKILLS ---------------------------------------------------------------
-
-const skillsScene = {
-  enter(G) {
-    this.vals = {};
-    for (const s of SKILLS) this.vals[s.key] = 1;
-    this.left = SKILL_POINTS;
-    this.sel = 0;
-  },
-  key(G, e) {
-    if (e.type !== 'down') return;
-    const k = SKILLS[this.sel].key;
-    if (e.key === 'ArrowUp') this.sel = (this.sel + SKILLS.length - 1) % SKILLS.length;
-    if (e.key === 'ArrowDown') this.sel = (this.sel + 1) % SKILLS.length;
-    if (e.key === 'ArrowRight' && this.left > 0 && this.vals[k] < 6) { this.vals[k]++; this.left--; sfxTick(); }
-    if (e.key === 'ArrowLeft' && this.vals[k] > 1) { this.vals[k]--; this.left++; sfxTick(); }
-    if (e.key === 'Enter' && this.left === 0) {
-      const seed = hashStr(G.pendingTag) ^ Date.now();
-      G.run = newRun(G.pendingTag, { ...this.vals }, seed >>> 0);
+      const seed = (hashStr(this.tag) ^ Date.now()) >>> 0;
+      G.run = newRun(this.tag, seed);
       G.go('partner');
     }
   },
   draw(G, ctx) {
     rect(ctx, 0, 0, W, H, '#0c0c1e');
-    centerText(ctx, `${G.pendingTag} — WHO ARE YOU OUT THERE?`, 12, '#fff');
-    centerText(ctx, `POINTS LEFT: ${this.left}`, 26, this.left ? '#ffe040' : '#40e050');
-    SKILLS.forEach((s, i) => {
-      const y = 44 + i * 18;
-      const isSel = i === this.sel;
-      if (isSel) rect(ctx, 40, y - 2, 240, 14, '#1c1c30');
-      text(ctx, s.name, 48, y, isSel ? '#ffe040' : '#ccc');
-      for (let p = 0; p < 6; p++) {
-        rect(ctx, 110 + p * 14, y + 1, 10, 8, p < this.vals[s.key] ? '#ff3060' : '#26263a');
-      }
-      text(ctx, String(this.vals[s.key]), 200 + 8, y, '#fff');
-    });
-    centerText(ctx, SKILLS[this.sel].desc, 160, '#888');
-    centerText(ctx, this.left === 0 ? '[ENTER] HIT THE STREET' : 'ARROWS TO SPEND YOUR POINTS', 178,
-      this.left === 0 ? '#fff' : '#666');
+    drawTwinkles(ctx, this.t, 777, 22, 0, 40);
+    centerText(ctx, 'EVERY WRITER NEEDS A NAME', 26, '#888');
+    centerText(ctx, 'WRITE YOUR TAG', 40, '#fff', 2);
+    const shown = this.tag + (Math.sin(this.t * 6) > 0 ? '_' : ' ');
+    centerText(ctx, shown, 66, '#ffe040', 2);
+    if (this.preview) {
+      // how it might look on a wall someday
+      ctx.drawImage(this.preview, 40, 88, 240, 90);
+    } else {
+      centerText(ctx, '. . .', 126, '#33334a', 2);
+    }
+    centerText(ctx, '2-8 LETTERS. SHORT NAMES GO UP FASTER.', 182, '#888');
+    if (this.tag.length >= 2) centerText(ctx, '[ENTER] THAT\'S ME', 192, '#fff');
   },
 };
 
@@ -148,6 +177,7 @@ const partnerScene = {
     this.stopPos = lap + this.target;
   },
   update(G, dt) {
+    this.animT = (this.animT || 0) + dt;
     if (this.locked) { this.lockT += dt; return; }
     // decelerate so we stop on stopPos
     const remaining = this.stopPos - this.pos;
@@ -184,7 +214,7 @@ const partnerScene = {
       const idx = ((Math.round(this.pos) + k) % n + n) % n;
       const p = this.cands[idx];
       const yOff = (Math.round(this.pos) + k - this.pos) * 26 + ry + rh / 2 - 12;
-      ctx.drawImage(this.sprites[idx], rx + 8, yOff);
+      drawSpriteFlip(ctx, idleFrame(this.sprites[idx], this.animT || 0, idx * 0.7), rx + 8, yOff, false);
       text(ctx, p.tag, rx + 30, yOff + 9, k === 0 || this.locked ? '#fff' : '#666');
     }
     ctx.restore();
@@ -371,7 +401,11 @@ const bookScene = {
 const intermissionScene = {
   enter(G) {
     playBeat(hashStr('night') + level(G.run));
+    this.t = 0;
+    this.kid = makeKid(hashStr(G.run.tag), hashStr(G.run.tag) % 360);
+    this.pal = G.run.partner ? makeKid(hashStr(G.run.partner.tag), G.run.partner.hue) : null;
   },
+  update(G, dt) { this.t += dt; },
   key(G, e) {
     if (e.type !== 'down') return;
     if (e.key === 'Enter') { G.run.partner = null; G.go('partner'); }
@@ -380,22 +414,44 @@ const intermissionScene = {
   draw(G, ctx) {
     const run = G.run;
     rect(ctx, 0, 0, W, H, '#0c0c1e');
-    // dusk over rooftops
-    dither(ctx, 0, 0, W, 40, '#2a1a30');
-    for (let x = 0; x < W; x += 40) {
-      rect(ctx, x, 46 + (x % 80 ? 8 : 0), 34, 60 - (x % 80 ? 8 : 0), '#16121e');
-      for (let wy = 0; wy < 3; wy++) for (let wx = 0; wx < 3; wx++)
-        if ((x + wy + wx) % 3) rect(ctx, x + 6 + wx * 9, 54 + wy * 12, 4, 5, '#3a3020');
+    drawTwinkles(ctx, this.t, 1717, 30, 0, 90);
+    // moon
+    for (let dy = -4; dy <= 4; dy++) {
+      const ww = Math.round(Math.sqrt(16 - dy * dy));
+      rect(ctx, 270 - ww, 26 + dy, ww * 2, 1, '#e8e4c8');
     }
+    rect(ctx, 267, 24, 2, 2, '#d0ccb0'); rect(ctx, 272, 28, 2, 2, '#d0ccb0');
+    // rooftops, dusk-washed
+    dither(ctx, 0, 84, W, 20, '#2a1a30');
+    for (let x = 0; x < W; x += 40) {
+      const bh = x % 80 ? 8 : 0;
+      rect(ctx, x, 96 + bh, 34, 108 - bh, '#16121e');
+      for (let wy = 0; wy < 3; wy++) for (let wx = 0; wx < 3; wx++)
+        if ((x + wy + wx) % 3) rect(ctx, x + 6 + wx * 9, 104 + bh + wy * 12, 4, 5, '#3a3020');
+    }
+    // water tower + antenna on the near roofs
+    rect(ctx, 208, 82, 16, 12, '#241c18'); rect(ctx, 210, 79, 12, 3, '#2c221c');
+    rect(ctx, 209, 94, 2, 4, '#241c18'); rect(ctx, 221, 94, 2, 4, '#241c18');
+    rect(ctx, 132, 84, 1, 12, '#2a2a34'); rect(ctx, 128, 86, 9, 1, '#2a2a34');
+    // your crew on the front roof, watching the city
+    rect(ctx, 0, 172, W, 28, '#100c14');
+    rect(ctx, 0, 172, W, 2, '#231a26');
+    drawSpriteFlip(ctx, idleFrame(this.kid, this.t, 0), 22, 149, false);
+    if (this.pal) drawSpriteFlip(ctx, idleFrame(this.pal, this.t, 1.2), 44, 149 + (Math.sin(this.t * 1.4) > 0.7 ? 1 : 0), false);
+    // a pigeon keeping its distance
+    const px = 76 + Math.floor(Math.sin(this.t * 0.7) * 3);
+    rect(ctx, px, 168, 4, 3, '#8a8a96'); rect(ctx, px + 3, 166, 2, 2, '#8a8a96');
+    if (Math.sin(this.t * 3.1) > 0.8) rect(ctx, px + 4, 165, 1, 1, '#8a8a96'); // peck
+
     const n = level(run);
-    centerText(ctx, `NIGHT ${n + 1}`, 20, '#ffe040', 2);
-    centerText(ctx, `${n} BURNER${n === 1 ? '' : 'S'} UP`, 48, '#fff');
-    centerText(ctx, `STRIKES ${run.strikes}/3`, 60, run.strikes ? '#ff5030' : '#666');
+    centerText(ctx, `NIGHT ${n + 1}`, 16, '#ffe040', 2);
+    centerText(ctx, `${n} BURNER${n === 1 ? '' : 'S'} UP`, 42, '#fff');
+    centerText(ctx, `STRIKES ${run.strikes}/3`, 54, run.strikes ? '#ff5030' : '#666');
     centerText(ctx, n >= 3 ? 'THE STREETS KNOW YOUR NAME. SO DO THE COPS.'
       : n >= 1 ? 'WORD IS GETTING AROUND.'
-      : 'THE CITY DOESN\'T KNOW YOU YET.', 82, '#888');
-    centerText(ctx, '[ENTER] PAINT TONIGHT', 130, '#fff', 1);
-    centerText(ctx, '[B] FLIP THROUGH THE BOOK', 152, '#c0a060');
+      : 'THE CITY DOESN\'T KNOW YOU YET.', 68, '#888');
+    if (Math.sin(this.t * 4) > -0.3) centerText(ctx, '[ENTER] PAINT TONIGHT', 124, '#fff');
+    centerText(ctx, '[B] FLIP THROUGH THE BOOK', 138, '#c0a060');
   },
 };
 
@@ -404,18 +460,28 @@ const intermissionScene = {
 const gameoverScene = {
   enter(G) {
     stopBeat();
+    stopAmbience();
+    this.t = 0;
     const run = G.run;
     const n = level(run);
     this.hs = saveHighScore(run.tag, n);
     this.isKing = this.hs.length && this.hs[0].tag === run.tag && this.hs[0].piecesUp === n;
   },
+  update(G, dt) { this.t += dt; },
   key(G, e) {
     if (e.type === 'down' && e.key === 'Enter') G.go('title');
   },
   draw(G, ctx) {
     const run = G.run;
     const n = level(run);
-    rect(ctx, 0, 0, W, H, '#180808');
+    rect(ctx, 0, 0, W, H, '#120608');
+    // the cruiser's lights, washing the block
+    const ph = Math.sin(this.t * 3.2);
+    ctx.globalAlpha = 0.09 + Math.max(0, ph) * 0.08;
+    rect(ctx, 0, 0, W / 2, H, '#ff2030');
+    ctx.globalAlpha = 0.09 + Math.max(0, -ph) * 0.08;
+    rect(ctx, W / 2, 0, W / 2, H, '#2040ff');
+    ctx.globalAlpha = 1;
     centerText(ctx, 'THREE STRIKES.', 40, '#ff3030', 2);
     centerText(ctx, 'YOUR PARENTS PICK YOU UP FROM THE PRECINCT.', 66, '#c88');
     centerText(ctx, `${run.tag} GOT UP ${n} BURNER${n === 1 ? '' : 'S'}`, 96, '#ffe040', 1);
@@ -428,7 +494,6 @@ const gameoverScene = {
 export const SCENES = {
   title: titleScene,
   name: nameScene,
-  skills: skillsScene,
   partner: partnerScene,
   sketch: sketchScene,
   map: mapScene,

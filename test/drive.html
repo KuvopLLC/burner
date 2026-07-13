@@ -15,7 +15,7 @@
 import '../src/main.js';
 
 // Adaptive driver: reads window.BURNER and plays one full loop —
-// name, skills, tumbler, sketch, map, paint (properly: right can per
+// name, tumbler, sketch, map, paint (properly: right can per
 // region, hides from cops), result, book, rack run. Headless rAF stalls
 // under --virtual-time-budget, so it pumps G.step() itself. Scene
 // transitions are console.logged so you know where a budget lands.
@@ -60,22 +60,22 @@ setInterval(() => {
       if (!typed) { typed = true; for (const c of 'ZEKE') key(c); }
       if (el >= 400) key('Enter');
       break;
-    case 'skills':
-      if (sc.left > 0) { key('ArrowRight'); if (sc.left % 2) key('ArrowDown'); }
-      else key('Enter');
-      break;
     case 'partner':
       if (el > 4000 || (sc.locked && sc.lockT > 0.7)) key('Enter');
       break;
     case 'sketch':
       if (sc.t > 1.1) key('Enter');
       break;
-    case 'map':
+    case 'map': {
+      // #wall / #gallery hash aims at that kind; default: a yard
+      const wantKind = location.hash === '#wall' ? 'wall'
+        : location.hash === '#gallery' ? 'gallery' : 'train';
       if (el >= 300) {
-        if (sc.spots[sc.sel].kind !== 'train') key('ArrowRight'); // aim for a yard
+        if (sc.spots[sc.sel].kind !== wantKind) key('ArrowRight');
         else key('Enter');
       }
       break;
+    }
     case 'paint':
       paintTick(G, sc.s);
       break;

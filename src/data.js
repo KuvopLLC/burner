@@ -1,14 +1,5 @@
 // data.js — static game data: skills, partners, spots, paint colors, gear.
 
-export const SKILLS = [
-  { key: 'sketch', name: 'SKETCH', desc: 'A PLANNED PIECE. EACH BURST COVERS MORE.' },
-  { key: 'cans',   name: 'CANS',   desc: 'CAN CONTROL. BIG BURSTS AT 5+.' },
-  { key: 'dash',   name: 'DASH',   desc: 'THE GETAWAY. TROUBLE GIVES UP SOONER.' },
-  { key: 'creep',  name: 'CREEP',  desc: 'MOVE UNSEEN. TROUBLE COMES SLOWER.' },
-];
-
-export const SKILL_POINTS = 8; // distributed on top of base 1 each, cap 6
-
 export const PARTNERS = [
   { tag: 'LADY VEX', style: 'WILDSTYLE ROYALTY',
     bio: 'ARROWS INSIDE ARROWS. NOBODY CAN READ HER LETTERS.',
