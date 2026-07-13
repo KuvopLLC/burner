@@ -76,6 +76,9 @@ setInterval(() => {
       }
       break;
     }
+    case 'doors':
+      if (el >= 300) key('Enter'); // roll them open
+      break;
     case 'paint':
       paintTick(G, sc.s);
       break;

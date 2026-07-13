@@ -22,6 +22,7 @@ setInterval(() => {
   else if (G.sceneName === 'partner') { if (sc.locked && sc.lockT > 0.7) key('Enter'); else if (!sc.locked) key('Enter'); }
   else if (G.sceneName === 'sketch') { if (sc.t > 1.1) key('Enter'); }
   else if (G.sceneName === 'map') key('Enter');
+  else if (G.sceneName === 'doors') key('Enter');
   else if (G.sceneName === 'paint' && s) {
     mouse(160, 80); // kid stands mid-wall
     if (phase === 0) { // test 1: dog + hiding = survive

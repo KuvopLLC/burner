@@ -345,6 +345,28 @@ export function sfxWhoosh() {
   s.start(t); s.stop(t + 0.65);
 }
 
+// the two-tone subway door chime
+export function sfxChime() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  tone(t, 659, 0.28, 0.14, 'sine');
+  tone(t + 0.22, 523, 0.4, 0.14, 'sine');
+}
+
+export function sfxDoorSlide() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  s.buffer = getNoise();
+  f.type = 'lowpass'; f.frequency.value = 500;
+  g.gain.setValueAtTime(0.0, t);
+  g.gain.linearRampToValueAtTime(0.10, t + 0.15);
+  g.gain.linearRampToValueAtTime(0.02, t + 1.0);
+  g.gain.linearRampToValueAtTime(0.0, t + 1.2);
+  s.connect(f).connect(g).connect(master);
+  s.start(t); s.stop(t + 1.25);
+}
+
 export function sfxClink() {
   if (!ac) return;
   const t = ac.currentTime;

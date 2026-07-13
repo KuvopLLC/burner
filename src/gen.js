@@ -133,19 +133,20 @@ function stampMask(c, rows, x0, y0, sc) {
   }
 }
 
-export function makePiece(tag, seed, partnerTag = null) {
+export function makePiece(tag, seed, partnerTag = null, forceWord = null) {
   const rng = makeRng(seed);
   const w = PIECE_W, h = PIECE_H;
 
   // 0. Tonight's subject + decorations
   let word = tag;
   const roll = rng();
-  if (partnerTag && roll < 0.15) word = partnerTag;
+  if (forceWord) word = forceWord;
+  else if (partnerTag && roll < 0.15) word = partnerTag;
   else if (roll < 0.45) word = pick(rng, WORDS);
-  const animal = rng() < 0.35 ? pick(rng, ANIMALS) : null;
+  const animal = !forceWord && rng() < 0.35 ? pick(rng, ANIMALS) : null;
   const animalSide = rng() < 0.5 ? -1 : 1;
   const hasCrown = rng() < 0.45;
-  const hasArrows = !animal && rng() < 0.4;
+  const hasArrows = !animal && !forceWord && rng() < 0.4;
   const nStars = Math.floor(rng() * 3) + (hasCrown ? 0 : 1);
   const hasCharm = !animal && rng() < 0.3 ? (rng() < 0.5 ? 'heart' : 'bolt') : null;
 

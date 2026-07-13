@@ -2,7 +2,7 @@
 // the partner tumbler, the sketch, the Bronx map, the black book,
 // the between-nights breather, game over.
 
-import { W, H, text, textWidth, centerText, stext, scenter, rect, frame, panel, dither } from './gfx.js';
+import { W, H, text, textWidth, centerText, stext, scenter, rect, frame, panel, dither, makeCanvas } from './gfx.js';
 import { PARTNERS, SPOTS } from './data.js';
 import { makeRng, irange } from './rng.js';
 import { makePiece, renderPiece, renderSketch, makeKid, makeCop, makeDog } from './gen.js';
@@ -10,7 +10,7 @@ import { newRun, availableSpots, level, loadHighScores, saveHighScore } from './
 import { paintScene, resultScene, drawCrewCorner } from './paint.js';
 import { drawSpriteFlip, idleFrame } from './scenery.js';
 import { buildBronxMap, MAP_H } from './bronx.js';
-import { playBeat, stopBeat, stopAmbience, sfxPop, sfxTick } from './audio.js';
+import { playBeat, stopBeat, stopAmbience, sfxPop, sfxTick, sfxChime, sfxDoorSlide } from './audio.js';
 
 function hashStr(s) {
   let h = 2166136261;
@@ -365,7 +365,7 @@ const mapScene = {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { this.sel = (this.sel + this.spots.length - 1) % this.spots.length; sfxTick(); }
     if (e.key === 'Enter') {
       G.run.spot = this.spots[this.sel];
-      G.go('paint');
+      G.go('doors');
     }
   },
   draw(G, ctx) {
@@ -543,7 +543,99 @@ const gameoverScene = {
   },
 };
 
+// ---- THE DOORS -------------------------------------------------------------
+// You ride to the spot. The doors wear tonight's number, sprayed across
+// both leaves — the chime sounds, the leaves part, the piece splits,
+// and the night is behind them.
+
+function buildDoorLeaf(side, pieceCv) {
+  const [cv, c] = makeCanvas(150, 200);
+  // brushed steel
+  rect(c, 0, 0, 150, 200, '#8d939b');
+  c.fillStyle = '#868c94';
+  for (let x = 3; x < 150; x += 5) c.fillRect(x, 0, 1, 200);
+  // door window, rounded corners
+  const wx = side === 0 ? 24 : 16, wy = 28, ww = 110, wh = 64;
+  rect(c, wx - 2, wy - 2, ww + 4, wh + 4, '#6a7078');
+  rect(c, wx, wy, ww, wh, '#14161c');
+  for (const [cx, cy] of [[wx, wy], [wx + ww - 1, wy], [wx, wy + wh - 1], [wx + ww - 1, wy + wh - 1]]) {
+    rect(c, cx, cy, 1, 1, '#6a7078');
+  }
+  rect(c, wx + 4, wy + 3, ww - 30, 2, '#2a3038'); // glass sheen
+  // kick plate + bolts
+  rect(c, 0, 152, 150, 32, '#798088');
+  rect(c, 0, 152, 150, 1, '#5c6168');
+  for (const bx of [14, 52, 96, 134]) rect(c, bx, 166, 2, 2, '#5c6168');
+  // rubber meeting edge
+  const edgeX = side === 0 ? 146 : 0;
+  rect(c, edgeX, 0, 4, 200, '#15151a');
+  rect(c, side === 0 ? 144 : 4, 0, 2, 200, '#3c4048');
+  // the piece half: piece sits at screen x40 w240; leaves cover 10..160 / 160..310
+  if (side === 0) c.drawImage(pieceCv, 0, 0, 120, 90, 30, 52, 120, 90);
+  else c.drawImage(pieceCv, 120, 0, 120, 90, 0, 52, 120, 90);
+  return cv;
+}
+
+const doorsScene = {
+  enter(G) {
+    // the night is already alive behind the doors
+    paintScene.enter(G);
+    const n = level(G.run) + 1;
+    const piece = makePiece(G.run.tag, hashStr('doors' + n + G.run.tag) >>> 0, null, `NIGHT ${n}`);
+    const pieceCv = renderPiece(piece);
+    this.leafL = buildDoorLeaf(0, pieceCv);
+    this.leafR = buildDoorLeaf(1, pieceCv);
+    this.t = 0;
+    this.chimed = false;
+    this.slid = false;
+    sfxDoorSlide(); // arrival hiss
+  },
+  update(G, dt) {
+    this.t += dt;
+    paintScene.s.scenery.update(dt); // the street lives while you arrive
+    if (!this.chimed && this.t > 0.7) { this.chimed = true; sfxChime(); }
+    if (!this.slid && this.t > 1.15) { this.slid = true; sfxDoorSlide(); }
+    if (this.t > 2.7) {
+      // hand over to the live paint scene without re-entering
+      G.sceneName = 'paint';
+      G.scene = paintScene;
+    }
+  },
+  key(G, e) {
+    if (e.type === 'down' && (e.key === 'Enter' || e.key === ' ' || e.key === 'x')) {
+      this.t = Math.max(this.t, 1.15); // skip the wait, roll the doors
+    }
+  },
+  draw(G, ctx) {
+    // the night behind the doors
+    paintScene.draw(G, ctx);
+    // door travel: eased slide after the chime
+    const slide = Math.max(0, Math.min(1, (this.t - 1.15) / 1.25));
+    const ease = slide < 0.5 ? 2 * slide * slide : 1 - Math.pow(-2 * slide + 2, 2) / 2;
+    const off = Math.round(ease * 152);
+    ctx.drawImage(this.leafL, 10 - off, 0);
+    ctx.drawImage(this.leafR, 160 + off, 0);
+    // frame pillars + header band over everything
+    rect(ctx, 0, 0, 10, H, '#5c6168');
+    rect(ctx, 310, 0, 10, H, '#5c6168');
+    rect(ctx, 8, 0, 1, H, '#3c4048');
+    rect(ctx, 311, 0, 1, H, '#3c4048');
+    rect(ctx, 0, 0, W, 22, '#4c5057');
+    rect(ctx, 0, 21, W, 1, '#2e3238');
+    // destination sign
+    rect(ctx, 106, 5, 108, 13, '#0c0c10');
+    frame(ctx, 106, 5, 108, 13, '#2e3238');
+    text(ctx, 'BRONX BOUND', 128, 8, '#f0a028');
+    // threshold
+    rect(ctx, 0, 184, W, 4, '#3c4048');
+    rect(ctx, 0, 188, W, 12, '#17171d');
+    ctx.fillStyle = '#f0c040';
+    for (let x = 4; x < W; x += 12) ctx.fillRect(x, 185, 6, 2); // caution stripe
+  },
+};
+
 export const SCENES = {
+  doors: doorsScene,
   title: titleScene,
   name: nameScene,
   partner: partnerScene,
