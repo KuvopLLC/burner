@@ -94,7 +94,7 @@ setInterval(() => {
     case 'intermission':
       if (G.run.pieces.length >= 2) {
         done = true;
-        console.log(`DRIVE DONE @ ${now} — burners=${G.run.pieces.length} strikes=${G.run.strikes}`);
+        console.log(`DRIVE DONE @ ${now} — burners=${G.run.pieces.length} hearts=${G.run.hearts}`);
       } else if (el >= 400) {
         plan = null; copSeen = false; // fresh night
         key('Enter');
@@ -108,21 +108,19 @@ setInterval(() => {
 }, 100);
 
 // Paint like a writer: one region at a time, bursting straight at
-// uncovered pixels, hiding whenever trouble (cop OR dog) is out.
+// uncovered pixels, jumping whatever the street sends.
 function paintTick(G, s) {
-  if (!s || s.busted || s.done) return;
+  if (!s || s.dead || s.done) return;
   const piece = G.run.piece, w = piece.w;
 
-  const trouble = (s.cop && !s.cop.leaving) || s.dog;
-  if (trouble) {
-    if (!hiding) {
-      hiding = true;
-      if (!copSeen) { copSeen = true; console.log(`TROUBLE (${s.dog ? 'dog' : 'cop'}) @ ${now}`); }
-      key(' ', 'down');
+  const kidC = s.kidX + 10;
+  for (const e of s.enemies) {
+    if (Math.abs((e.x + 10) - kidC) < 36 && !s.airborne) {
+      if (!copSeen) { copSeen = true; console.log(`TROUBLE (${e.type}) @ ${now} — jumping`); }
+      key(' ');
+      break;
     }
-    return;
   }
-  if (hiding) { hiding = false; key(' ', 'up'); }
 
   if (!plan) { plan = { cursor: 0, reg: null }; console.log(`PAINT START (r=${s.burstR})`); }
   const regs = [5, 4, 1, 2, 3].filter(r => !s.regDone[r]);

@@ -438,7 +438,7 @@ const bookScene = {
     if (!run.pieces.length) centerText(ctx, 'NOTHING IN THE BOOK YET', 88, '#8a7a5a');
     text(ctx, `PAGE ${this.page + 1}`, 182, 166, '#8a7a5a');
     const n = run.pieces.length;
-    scenter(ctx, `${n} UP · STRIKES ${run.strikes}/3`, 186, '#ffe040');
+    scenter(ctx, `${n} UP · ${'♥'.repeat(Math.max(0, run.hearts))}`, 186, '#ffe040');
     scenter(ctx, '< > FLIP · [ENTER] CLOSE', 202, '#9a9aa8');
   },
 };
@@ -493,9 +493,9 @@ const intermissionScene = {
     drawHeader(G, ctx, this.t, false);
     const n = level(run);
     scenter(ctx, `NIGHT ${n + 1}`, 32, '#ffe040', 2);
-    // strikes as marks, not words
+    // your hearts
     for (let i = 0; i < 3; i++) {
-      stext(ctx, 'X', W / 2 - 15 + i * 12, 58, i < run.strikes ? '#ff4040' : '#33334a');
+      stext(ctx, '♥', W / 2 - 16 + i * 12, 58, i < run.hearts ? '#ff4050' : '#33334a');
     }
     if (Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] PAINT', 122, '#ffe040');
     scenter(ctx, '[B] THE BOOK', 140, '#c0a060');
@@ -536,7 +536,7 @@ const gameoverScene = {
       ['NIGHTS SURVIVED', n],
       ['BURNERS UP', n],
       ['BURSTS SPRAYED', run.bursts],
-      ['CLOSE CALLS', run.hides],
+      ['JUMPS', run.jumps],
     ];
     rows.forEach(([label, v], i) => {
       const line = label.padEnd(17, '.') + String(v).padStart(5, '.');
@@ -654,7 +654,6 @@ const demoScene = {
     G.run.spot = SPOTS.find(sp => sp.kind === 'train');
     paintScene.enter(G);
     this.t = 0;
-    this.hiding = false;
     this.cursor = 0;
     this.burstT = 0.4;
   },
@@ -668,14 +667,18 @@ const demoScene = {
     this.t += dt;
     const s = paintScene.s;
     // leave before any transition fires: no results, no strikes, no book
-    if (!s || s.busted || s.done || this.t > 30) { this.exit(G); return; }
+    if (!s || s.dead || s.done || this.t > 30 || G.run.hearts <= 0) { this.exit(G); return; }
     paintScene.update(G, dt);
 
-    // the AI writer
-    const trouble = s.dog || s.cop;
-    if (trouble && !this.hiding) { this.hiding = true; paintScene.key(G, { type: 'down', key: ' ' }); }
-    if (!trouble && this.hiding) { this.hiding = false; paintScene.key(G, { type: 'up', key: ' ' }); }
-    if (this.hiding) return;
+    // the AI writer: jump anything that gets close
+    const kidC = s.kidX + 10;
+    for (const e of s.enemies) {
+      const eC = e.x + 10;
+      if (Math.abs(eC - kidC) < 34 && !s.airborne) {
+        paintScene.key(G, { type: 'down', key: ' ' });
+        break;
+      }
+    }
 
     const regs = [1, 2, 3, 4, 5].filter(r => !s.regDone[r]);
     if (!regs.length) return;

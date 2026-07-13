@@ -374,6 +374,19 @@ export function sfxClink() {
   tone(t + 0.02, 3300, 0.08, 0.04, 'sine');
 }
 
+export function sfxHit() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  tone(t, 320, 0.08, 0.2);
+  tone(t + 0.08, 210, 0.12, 0.18);
+}
+
+export function sfxPower() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  [523, 659, 784, 1047].forEach((f, i) => tone(t + i * 0.07, f, 0.1, 0.1));
+}
+
 export function sfxBark() {
   if (!ac) return;
   const t = ac.currentTime;

@@ -20,10 +20,15 @@ An 8-bit graffiti game. 1980s Bronx. You get up, you stay up.
 
 ## The core (current focus)
 
-The game is deliberately lean right now: **paint the piece, avoid what comes
-down the street, survive as many nights as you can.** No clocks, no meters,
-no economy — one verb for trouble (SPACE = hide) and one verb for paint
-(point + X). Score is the count of burners you got up before three strikes.
+The game is deliberately lean right now: **paint the piece, dodge what comes
+down the street, survive as many nights as you can.** Mario rules: enemies
+are physical — cops chase and dogs charge on your level, and SPACE jumps
+over them. You start POWERED (the flow): point at a region with its can and
+one press cascade-fills the whole thing. Take a hit and you drop to tedious
+burst-spraying until you grab gear off the street (a rope chain, a bottle of
+yak, tickets to the game — the mushrooms of the Bronx). Hit while small and
+it costs one of your three hearts; hearts persist across nights, zero is
+game over. Score is the count of burners you got up.
 
 ## The four skills
 

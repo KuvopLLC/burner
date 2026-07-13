@@ -11,7 +11,7 @@ import { makeRng, pick, irange } from './rng.js';
 import { makeKid, makeCop, makeDog, makePedestrian, renderSketch, renderPiece, pieceShade } from './gen.js';
 import { makeScenery, drawSpriteFlip, idleFrame, walkFrame } from './scenery.js';
 import { addPiece, level } from './world.js';
-import { sfxSpray, sfxSiren, sfxWhistle, sfxBust, sfxPop, sfxTick, sfxBark, sfxRattle, sfxTwinkle, playBeat, startAmbience } from './audio.js';
+import { sfxSpray, sfxSiren, sfxWhistle, sfxBust, sfxPop, sfxTick, sfxBark, sfxRattle, sfxTwinkle, sfxHit, sfxPower, playBeat, startAmbience } from './audio.js';
 
 // Piece placement on screen: surface centered in the wider frame
 const SURF_X = 60, PX = SURF_X + 12, PY = 34;
@@ -98,10 +98,15 @@ export const paintScene = {
       selected: 0,
       burstR,
       elapsed: 0,
-      nextTrouble: spot.danger > 0 ? 6 + rng() * 4 : Infinity,
-      warned: false,
-      cop: null,          // patrolling: {x, dir, facing, phase, pauseT, turnX, passes, exposeT, spotted}
-      dog: null,          // {x, dir, bit}
+      // the street: contact enemies, gear pickups, Mario rules
+      enemies: [],
+      spawnT: spot.danger > 0 ? 5 + rng() * 4 : Infinity,
+      items: [],
+      itemT: 9 + rng() * 6,
+      powered: true,      // the flow: one press fills a whole region
+      inv: 0,             // mercy frames after a hit
+      jumpY: 0, jumpV: 0, airborne: false,
+      flood: null,        // {cx, cy, colorId, r, rid} region cascade
       fireHeld: false, autoT: 0,
       pal: {
         frames: makeKid(hashStr(run.partner.tag), run.partner.hue),
@@ -111,12 +116,12 @@ export const paintScene = {
       },
       ped: null,
       pedTimer: 5 + rng() * 6,
-      msg: '[X] SPRAY · ARROWS SWITCH CANS · [SPACE] HIDE',
+      msg: '[X] SPRAY · [SPACE] JUMP · ARROWS CANS',
       msgT: 5,
       sprayT: 0,
       fx: [],
       regFlash: null,
-      busted: false, bustedT: 0, bustedBy: null,
+      dead: false, deadT: 0,
       done: false, doneT: 0,
       bailArm: 0,         // double-tap ENTER to dip out early
       readyTold: false,
@@ -125,30 +130,38 @@ export const paintScene = {
       kidX: 150, kidVel: 0,
       copSprite: makeCop(hashStr(spot.id)),
       dogSprite: makeDog(hashStr(spot.id) ^ 77),
-      hiding: false,
       pulse: 0,
     };
   },
 
-  // trouble arrives faster at dangerous spots, on later nights, and the
+  // enemies come faster at dangerous spots, on later nights, and the
   // longer you've been standing at this wall
-  troubleInterval(s, G) {
+  spawnInterval(s, G) {
     const ptag = G.run.partner.tag;
-    let base = 15 - s.lvl * 0.9 - s.spot.danger * 1.3;
+    let base = 13 - s.lvl * 0.8 - s.spot.danger * 0.9;
     if (ptag === 'MERC ONE' && s.spot.kind === 'train') base *= 1.4;
-    base *= Math.max(0.5, 1 - s.elapsed / 120);
-    return Math.max(4, base) * (0.8 + s.rng() * 0.4);
+    base *= Math.max(0.45, 1 - s.elapsed / 100);
+    return Math.max(3.2, base) * (0.8 + s.rng() * 0.4);
+  },
+
+  spawnEnemy(s, type, side) {
+    const sprite = type === 'dog' ? s.dogSprite : s.copSprite;
+    s.enemies.push({
+      type, sprite,
+      x: side === 1 ? -28 : W + 28,
+      dir: side,
+      t: 0,
+    });
   },
 
   update(G, dt) {
     const s = this.s;
     s.scenery.update(dt);
-    if (s.busted) {
-      s.bustedT += dt;
-      if (s.bustedT > 2.5) {
+    if (s.dead) {
+      s.deadT += dt;
+      if (s.deadT > 2.2) {
         sfxSpray(false);
-        G.run.strikes++;
-        G.go(G.run.strikes >= 3 ? 'gameover' : 'intermission');
+        G.go('gameover');
       }
       return;
     }
@@ -176,7 +189,7 @@ export const paintScene = {
     // hold to spray: X or the mouse button autofires
     const overWall = G.mouse.x >= PX - 8 && G.mouse.x < PX + s.piece.w + 8 &&
                      G.mouse.y >= PY - 8 && G.mouse.y < PY + s.piece.h + 8;
-    if ((s.fireHeld || (G.mouse.down && overWall)) && !s.hiding) {
+    if ((s.fireHeld || (G.mouse.down && overWall)) && !s.flood) {
       s.autoT -= dt;
       if (s.autoT <= 0) {
         burst(G, s, G.mouse.x, G.mouse.y);
@@ -209,85 +222,92 @@ export const paintScene = {
       }
     }
 
-    // ---- trouble scheduler ----
-    if (!s.cop && !s.dog && s.nextTrouble !== Infinity) {
-      s.nextTrouble -= dt;
-      if (!s.warned && s.nextTrouble < 1.6 && G.run.partner.tag === 'KWIK 12') {
-        s.warned = true;
-        sfxWhistle();
-        say(s, 'KWIK WHISTLES — SOMETHING\'S COMING!');
-      }
-      if (s.nextTrouble <= 0) {
-        s.warned = false;
-        const dogChance = Math.min(0.65, 0.12 + s.lvl * 0.07 + s.elapsed / 160 +
-          (s.spot.kind === 'train' ? 0.1 : 0));
-        if (s.rng() < dogChance) {
-          const dir = s.rng() < 0.5 ? 1 : -1;
-          s.dog = { x: dir === 1 ? -20 : W + 20, dir, bit: false };
-          sfxBark();
-          say(s, 'DOG!! [SPACE] GET UP ON THE DUMPSTER!');
-        } else {
-          s.cop = {
-            x: W + 14, dir: -1, facing: -1, phase: 'walk',
-            pauseT: 0, turnX: 120 + s.rng() * 120,
-            passes: s.lvl >= 3 ? 2 : 1,
-            exposeT: 0, spotted: false,
-          };
-          sfxSiren();
-          say(s, '5-0 ON THE BLOCK — STAY OUT OF HIS SIGHT');
-        }
+    // ---- jump physics ----
+    if (s.airborne) {
+      s.jumpV += 620 * dt;
+      s.jumpY += s.jumpV * dt;
+      if (s.jumpY >= 0) { s.jumpY = 0; s.airborne = false; }
+    }
+    if (s.inv > 0) s.inv -= dt;
+
+    // ---- the street sends who it sends ----
+    if (s.spawnT !== Infinity) {
+      s.spawnT -= dt;
+      const maxOut = Math.min(3, 1 + Math.floor((s.lvl + 1) / 2));
+      if (s.spawnT <= 0 && s.enemies.length < maxOut) {
+        const dogChance = Math.min(0.6, 0.25 + s.lvl * 0.05 + (s.spot.kind === 'train' ? 0.12 : 0));
+        const type = s.rng() < dogChance ? 'dog' : 'cop';
+        const side = s.rng() < 0.5 ? 1 : -1;
+        this.spawnEnemy(s, type, side);
+        if (type === 'dog') sfxBark(); else sfxSiren();
+        if (G.run.partner.tag === 'KWIK 12') sfxWhistle();
+        s.spawnT = this.spawnInterval(s, G);
       }
     }
 
-    // ---- cop: he patrols; stay out of the flashlight ----
-    if (s.cop) {
-      const c = s.cop;
-      const speed = 26 + s.lvl * 2;
-      if (c.phase === 'walk') {
-        c.x += c.dir * speed * dt;
-        c.facing = c.dir;
-        if (c.dir === -1 && c.x <= c.turnX && c.passes > 0) {
-          c.phase = 'scan';
-          c.pauseT = 1.3 + s.rng() * 0.9;
-          c.passes--;
-          c.turnX = Math.max(70, c.turnX - (80 + s.rng() * 60));
-        }
-        if (c.x < -34) { s.cop = null; s.nextTrouble = this.troubleInterval(s, G); }
-        if (c.x > W + 40) { s.cop = null; s.nextTrouble = this.troubleInterval(s, G); }
-      } else { // scan: he stops and looks around — the danger window
-        const kidX = s.kidX + 10;
-        c.facing = kidX > c.x ? 1 : -1;
-        c.pauseT -= dt;
-        if (c.pauseT <= 0) c.phase = 'walk';
-      }
-      // does he see you?
-      if (s.cop) {
-        const kidX = s.kidX + 10;
-        const dx = kidX - c.x;
-        const inCone = !s.hiding && ((dx * c.facing > 0 && Math.abs(dx) < 80) || Math.abs(dx) < 24);
-        if (inCone) {
-          if (!c.spotted) { c.spotted = true; say(s, 'HE SEES YOU!! [SPACE] HIDE!'); }
-          c.exposeT += dt;
-          if (c.exposeT > 1.1) return bust(G, this, 'cop');
+    // ---- enemies: same ground as you. jump or wear it ----
+    const kidC = s.kidX + 10;
+    for (const e of s.enemies) {
+      e.t += dt;
+      if (e.type === 'dog') {
+        e.x += e.dir * (62 + s.lvl * 4) * dt;
+      } else {
+        // the cop chases for a while, then gives up and walks off
+        if (e.t < 7) {
+          e.dir = kidC > e.x + 10 ? 1 : -1;
+          e.x += e.dir * (30 + s.lvl * 2.5) * dt;
         } else {
-          c.spotted = false;
-          c.exposeT = Math.max(0, c.exposeT - dt * 0.9);
+          e.dir = e.x > W / 2 ? 1 : -1;
+          e.x += e.dir * 46 * dt;
+        }
+      }
+      // contact
+      const eC = e.x + (e.type === 'dog' ? 12 : 10);
+      if (s.inv <= 0 && s.jumpY > -14 && Math.abs(eC - kidC) < 13 && !s.done) {
+        takeHit(G, s, e.type);
+      }
+    }
+    s.enemies = s.enemies.filter(e => e.x > -40 && e.x < W + 40);
+
+    // ---- gear on the street: chains, yak, tickets ----
+    s.itemT -= dt;
+    if (s.itemT <= 0 && s.items.length < 2 && s.spawnT !== Infinity) {
+      s.items.push({
+        kind: pick(s.rng, ['chain', 'yak', 'ticket']),
+        x: SURF_X + 10 + s.rng() * 230, life: 12, bob: s.rng() * 6.28,
+      });
+      s.itemT = (s.powered ? 14 : 7) + s.rng() * 5;
+    }
+    for (const it of s.items) {
+      it.life -= dt;
+      if (it.life > 0 && Math.abs(it.x - kidC) < 13 && s.jumpY > -10) {
+        it.life = 0;
+        if (!s.powered) {
+          s.powered = true;
+          sfxPower();
+          say(s, 'BACK IN THE FLOW — FULL FILLS!');
+        } else if (G.run.hearts < 3) {
+          G.run.hearts++;
+          sfxPower();
+          say(s, '+1 ♥');
+        } else {
+          sfxTwinkle();
         }
       }
     }
+    s.items = s.items.filter(it => it.life > 0);
 
-    // ---- yard dog: fast, no mercy, hop the dumpster ----
-    if (s.dog) {
-      const d = s.dog;
-      const speed = 55 + s.lvl * 4 + s.spot.danger * 3;
-      d.x += d.dir * speed * dt;
-      const kidX = Math.max(SURF_X + 2, Math.min(SURF_X + 244, G.mouse.x - 10)) + 10;
-      if (!d.bit && !s.hiding && Math.abs(d.x + 12 - kidX) < 13) {
-        d.bit = true;
-        return bust(G, this, 'dog');
+    // ---- the flood: powered fills cascade through the region ----
+    if (s.flood) {
+      const f = s.flood;
+      f.r += 130 * dt;
+      applyBurst(s, f.cx, f.cy, f.colorId, Math.round(f.r));
+      s.sprayT = 0.1;
+      if (s.regDone[f.rid] || f.r > 280) {
+        const doneNow = s.regDone[f.rid];
+        s.flood = null;
+        if (doneNow) afterBurst(s, 1, f.rid, f.cx, f.cy);
       }
-      if (Math.abs(d.x - W / 2) < 4) sfxBark();
-      if (d.x < -30 || d.x > W + 30) { s.dog = null; s.nextTrouble = this.troubleInterval(s, G); }
     }
 
     // ---- pedestrians: just the neighborhood, watching ----
@@ -314,9 +334,14 @@ export const paintScene = {
 
   key(G, e) {
     const s = this.s;
-    if (s.busted || s.done) return;
+    if (s.dead || s.done) return;
     if (e.type === 'down') {
-      if (e.key === ' ') { if (!s.hiding) G.run.hides++; s.hiding = true; sfxSpray(false); s.sprayT = 0; }
+      if (e.key === ' ' && !s.airborne && !s.dead) {
+        s.airborne = true;
+        s.jumpV = -170;
+        s.jumpY = -0.01;
+        G.run.jumps++;
+      }
       if (e.key === 'x' || e.key === 'X') { s.fireHeld = true; burst(G, s, G.mouse.x, G.mouse.y); }
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { s.selected = (s.selected + 1) % s.bag.length; sfxRattle(); }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { s.selected = (s.selected + s.bag.length - 1) % s.bag.length; sfxRattle(); }
@@ -338,8 +363,6 @@ export const paintScene = {
           say(s, 'NOT DONE — [ENTER] AGAIN TO DIP');
         }
       }
-    } else if (e.key === ' ') {
-      s.hiding = false;
     } else if (e.key === 'x' || e.key === 'X') {
       s.fireHeld = false;
     }
@@ -347,7 +370,7 @@ export const paintScene = {
 
   click(G, x, y) {
     const s = this.s;
-    if (s.busted || s.done) return;
+    if (s.dead || s.done) return;
     // can selection by clicking the bag; anywhere on the piece = spray
     const bagX = (W - (s.bag.length * 40 + 12)) / 2;
     const i = Math.floor((x - bagX - 6) / 40);
@@ -402,7 +425,7 @@ export const paintScene = {
 
     // aiming ring: where the next burst lands, and which can this spot wants
     const m = G.mouse;
-    if (!s.hiding && !s.busted && !s.done &&
+    if (!s.dead && !s.done &&
         m.x >= PX - 6 && m.x < PX + s.piece.w + 6 && m.y >= PY - 6 && m.y < PY + s.piece.h + 6) {
       ctx.globalAlpha = 0.45;
       ctx.fillStyle = '#fff';
@@ -444,12 +467,7 @@ export const paintScene = {
       ctx.globalAlpha = 1;
     }
 
-    // whoever's hiding draws BEHIND cover
-    if (s.hiding) drawSpriteFlip(ctx, s.kid.idle[0], 30, 100, false);
-    if (s.pal.hidden) drawSpriteFlip(ctx, idleFrame(s.pal.frames, s.pulse / 6, 1.1), 46, 102, false);
-
-    // cover: a dumpster on the street and in the yard, a divider screen
-    // at the gallery
+    // street furniture (nobody hides anymore — you jump)
     if (s.spot.kind === 'gallery') {
       rect(ctx, 24, 106, 30, 32, '#f2efe8');
       frame(ctx, 24, 106, 30, 32, '#c9c4b8');
@@ -462,25 +480,41 @@ export const paintScene = {
       rect(ctx, 45, 121, 4, 3, '#1d3625');
     }
 
-    if (s.hiding) {
-      text(ctx, '!', 38, 94, '#ffe040');
-    } else if (!s.busted) {
-      const kx = Math.round(s.kidX);
-      const moving = Math.abs(s.kidVel) > 0.35;
-      const cv = moving ? walkFrame(s.kid, s.pulse / 3) : idleFrame(s.kid, s.pulse / 6);
-      const bob = moving ? 0 : (Math.sin(s.pulse * 0.4) > 0.5 ? 1 : 0);
-      drawSpriteFlip(ctx, cv, kx, 112 + bob, moving && s.kidVel < 0);
-      rect(ctx, kx + (G.mouse.x > kx + 10 ? 18 : -1), 132 + bob, 2, 5, sel.hex); // can in hand
+    // gear on the street, bobbing and shining
+    for (const it of s.items) {
+      const iy = 130 + Math.round(Math.sin(s.pulse * 0.8 + it.bob) * 2);
+      const blinkOut = it.life < 3 && Math.sin(s.pulse * 4) < 0;
+      if (blinkOut) continue;
+      drawItem(ctx, it.kind, Math.round(it.x) - 5, iy);
+      if (Math.sin(s.pulse * 2 + it.bob) > 0.8) {
+        stext(ctx, '+', Math.round(it.x) - 9, iy - 8, '#fff');
+      }
     }
 
-    // your partner, working
-    if (!s.pal.hidden) {
+    // the kid: jumping, flickering through mercy frames, spraying
+    if (!(s.inv > 0 && Math.floor(s.pulse * 4) % 2 === 0)) {
+      const kx = Math.round(s.kidX);
+      const ky = 112 + Math.round(s.jumpY);
+      const moving = Math.abs(s.kidVel) > 0.35;
+      const cv = s.airborne ? s.kid.walk[1]
+        : moving ? walkFrame(s.kid, s.pulse / 3) : idleFrame(s.kid, s.pulse / 6);
+      const bob = moving || s.airborne ? 0 : (Math.sin(s.pulse * 0.4) > 0.5 ? 1 : 0);
+      drawSpriteFlip(ctx, cv, kx, ky + bob, moving && s.kidVel < 0);
+      rect(ctx, kx + (G.mouse.x > kx + 10 ? 18 : -1), ky + 20 + bob, 2, 5, sel.hex); // can in hand
+      if (s.powered && Math.sin(s.pulse * 2.6) > 0.7) {
+        stext(ctx, '★', kx + 6, ky - 9, '#ffe040'); // the flow, visible
+      }
+    }
+
+    // your partner, working (and hopping the dogs)
+    {
       const pal = s.pal;
+      const py2 = 112 + Math.round(pal.hopY || 0);
       const moving = pal.target && Math.abs((PX + pal.target.x - 10) - pal.x) > 5;
       const pcv = moving ? walkFrame(pal.frames, s.pulse / 3.2) : idleFrame(pal.frames, s.pulse / 6, 0.7);
-      drawSpriteFlip(ctx, pcv, Math.round(pal.x), 112, pal.dir === -1);
+      drawSpriteFlip(ctx, pcv, Math.round(pal.x), py2, pal.dir === -1);
       if (pal.target) {
-        rect(ctx, Math.round(pal.x) + (pal.dir === 1 ? 18 : -1), 132, 2, 5,
+        rect(ctx, Math.round(pal.x) + (pal.dir === 1 ? 18 : -1), py2 + 20, 2, 5,
           s.piece.palette[pal.target.rid].hex); // their can
       }
     }
@@ -488,31 +522,18 @@ export const paintScene = {
     if (s.ped) {
       drawSpriteFlip(ctx, walkFrame(s.ped.sprite, s.pulse / 4), Math.round(s.ped.x), 132, s.ped.dir === -1);
     }
-    if (s.cop) {
-      const c = s.cop;
-      const cv = c.phase === 'walk' ? walkFrame(s.copSprite, s.pulse / 3.5) : idleFrame(s.copSprite, s.pulse / 6);
-      drawSpriteFlip(ctx, cv, Math.round(c.x), 132, c.facing === 1);
-      // the flashlight: where he's looking is where you can't be
-      const fx = c.facing === 1 ? c.x + 20 : c.x - 4;
-      ctx.fillStyle = '#ffe9a0';
-      for (let step = 0; step < 4; step++) {
-        ctx.globalAlpha = (c.phase === 'scan' ? 0.16 : 0.10) * (1 - step / 4);
-        const bw = 18 + step * 18;
-        rect(ctx, c.facing === 1 ? fx + step * 18 : fx - step * 18 - 18, 138 + step * 2, bw, 16 - step * 2, '#ffe9a0');
+    // whoever the street sent, on YOUR level
+    for (const e of s.enemies) {
+      if (e.type === 'dog') {
+        drawSpriteFlip(ctx, e.sprite.walk[Math.floor(s.pulse * 2.4) % 2], Math.round(e.x), 128, e.dir === 1);
+        if (Math.sin(s.pulse * 3 + e.x) > 0.6) stext(ctx, 'GRRR', Math.round(e.x), 118, '#ff3030');
+      } else {
+        drawSpriteFlip(ctx, walkFrame(e.sprite, s.pulse / 3.2), Math.round(e.x), 112, e.dir === 1);
+        if (e.t < 7 && Math.sin(s.pulse * 2) > 0.5) stext(ctx, '!', Math.round(e.x) + 8, 100, '#ffe040');
       }
-      ctx.globalAlpha = 1;
-      if (c.exposeT > 0 && Math.sin(s.pulse * 3) > 0) {
-        stext(ctx, '!', Math.round(c.x) + 8, 118, '#ff3030');
-      }
-    }
-    if (s.dog) {
-      const d = s.dog;
-      drawSpriteFlip(ctx, s.dogSprite.walk[Math.floor(s.pulse * 2.2) % 2], Math.round(d.x), 150, d.dir === 1);
-      const flash = Math.sin(s.pulse * 3) > 0;
-      stext(ctx, 'GRRR', Math.round(d.x), 142, flash ? '#ff3030' : '#ffe040');
     }
 
-    // HUD — just the night, the piece, and your strikes, on dark chips
+    // HUD — the night, the piece, hearts + flow, on dark chips
     // so they read against any scene
     const frac = s.coveredCount / s.totalRegion;
     ctx.globalAlpha = 0.62;
@@ -524,8 +545,9 @@ export const paintScene = {
     rect(ctx, 122 + Math.round(56 * 0.6), 5, 1, 9, '#c8c8d0'); // "it reads" mark
     text(ctx, `PIECE ${Math.floor(frac * 100)}%`, 124, 14, '#aaa');
     for (let i = 0; i < 3; i++) {
-      text(ctx, 'X', 8 + i * 9, 14, i < run.strikes ? '#ff3030' : '#3f3f50');
+      text(ctx, '♥', 8 + i * 10, 14, i < run.hearts ? '#ff4050' : '#3f3f50');
     }
+    text(ctx, '★', 42, 14, s.powered ? '#ffe040' : '#3f3f50');
     drawCrewCorner(G, ctx);
 
     // bag of cans
@@ -554,15 +576,31 @@ export const paintScene = {
       scenter(ctx, s.doneAll ? 'BURNED IT!' : 'IT READS — YOU\'RE UP!', 80, '#40e050', 2);
     }
 
-    if (s.busted) {
+    if (s.dead) {
       rect(ctx, 0, 70, W, 50, '#600');
-      centerText(ctx, s.bustedBy === 'dog' ? 'DOG GOT YOU!' : 'BUSTED!', 78, '#fff', 2);
-      centerText(ctx, `STRIKE ${run.strikes + 1} OF 3 — PIECE LOST`, 104, '#fcc');
+      centerText(ctx, 'THE STREETS GOT YOU', 82, '#fff', 2);
     }
   },
 };
 
 function say(s, msg) { s.msg = msg; s.msgT = 3.5; }
+
+// gear pickups: a rope chain, a bottle of yak, tickets to the game
+function drawItem(ctx, kind, x, y) {
+  if (kind === 'chain') {
+    for (let k = 0; k < 5; k++) {
+      rect(ctx, x + k * 2, y + (k === 0 || k === 4 ? 2 : k === 2 ? 6 : 4), 2, 2, k % 2 ? '#f8dc6a' : '#e0b02c');
+    }
+  } else if (kind === 'yak') {
+    rect(ctx, x + 3, y, 4, 2, '#5c421c');
+    rect(ctx, x + 2, y + 2, 6, 8, '#8a5c24');
+    rect(ctx, x + 3, y + 4, 4, 4, '#e8dcc0');
+  } else {
+    rect(ctx, x, y + 2, 10, 6, '#e8e0d0');
+    rect(ctx, x + 1, y + 3, 8, 1, '#cc3344');
+    rect(ctx, x + 5, y + 2, 1, 6, '#b0a890');
+  }
+}
 
 // Shared spray core: paint colorId pixels within r of (mx,my). Paint
 // ONLY lands on pixels whose region wants that color — it is impossible
@@ -619,13 +657,30 @@ function afterBurst(s, hit, doneRid, mx, my) {
   }
 }
 
-// The player's burst: whatever can is in hand.
+// The player's burst. Powered: point at your color's region and one
+// press CASCADES through the whole thing. Unpowered: the tedious way.
 function burst(G, s, mx, my) {
-  if (s.hiding || s.done || s.busted) return;
+  if (s.done || s.dead || s.flood) return;
   const r = s.burstR;
-  const px = mx - PX, py = my - PY;
+  const px = Math.round(mx - PX), py = Math.round(my - PY);
   if (px < -r || px >= s.piece.w + r || py < -r || py >= s.piece.h + r) return;
-  const { hit, doneRid } = applyBurst(s, mx, my, s.bag[s.selected].id, r);
+  const colorId = s.bag[s.selected].id;
+
+  if (s.powered) {
+    // what region is under the nozzle?
+    let rid = 0;
+    if (px >= 0 && px < s.piece.w && py >= 0 && py < s.piece.h) rid = s.piece.regions[py * s.piece.w + px];
+    if (rid && s.piece.palette[rid].id === colorId && !s.regDone[rid]) {
+      G.run.bursts++;
+      s.flood = { cx: mx, cy: my, colorId, r, rid };
+      applyBurst(s, mx, my, colorId, r);
+      s.sprayT = 0.14;
+      s.fx.push({ x: mx, y: my, t: 0 });
+      return;
+    }
+  }
+
+  const { hit, doneRid } = applyBurst(s, mx, my, colorId, r);
   if (hit > 0) {
     G.run.bursts++;
     afterBurst(s, hit, doneRid, mx, my);
@@ -635,20 +690,44 @@ function burst(G, s, mx, my) {
   }
 }
 
+// Contact. Powered: you drop the flow. Small: it costs a heart.
+function takeHit(G, s, byType) {
+  if (s.powered) {
+    s.powered = false;
+    s.inv = 1.8;
+    sfxHit();
+    say(s, byType === 'dog' ? 'THE DOG GOT YOUR FLOW — GRAB SOME GEAR!' : 'HE KNOCKED YOUR FLOW — GRAB SOME GEAR!');
+  } else {
+    G.run.hearts--;
+    s.inv = 2.1;
+    sfxBust();
+    if (G.run.hearts <= 0) {
+      s.dead = true;
+      s.deadT = 0;
+      say(s, '');
+    } else {
+      say(s, `THAT HURT! ${G.run.hearts} ♥ LEFT`);
+    }
+  }
+}
+
 // Your partner: finds an unfinished region, walks to it, and lays paint
 // with the RIGHT can — they came up doing this. They dive for cover
 // when trouble's out.
 function updatePal(G, s, dt) {
   const pal = s.pal;
-  const trouble = s.dog || s.cop;
-  pal.hidden = !!trouble;
-  if (pal.hidden) {
-    pal.dir = pal.x > 62 ? -1 : 1;
-    pal.x += (56 - pal.x) * Math.min(1, dt * 4);
-    pal.target = null;
-    return;
+  // hop when an enemy passes close
+  if (pal.hopY === undefined) { pal.hopY = 0; pal.hopV = 0; }
+  if (pal.hopY < 0 || pal.hopV !== 0) {
+    pal.hopV += 620 * dt;
+    pal.hopY += pal.hopV * dt;
+    if (pal.hopY >= 0) { pal.hopY = 0; pal.hopV = 0; }
+  } else {
+    for (const e of s.enemies) {
+      if (Math.abs((e.x + 10) - (pal.x + 10)) < 26) { pal.hopV = -150; pal.hopY = -0.01; break; }
+    }
   }
-  if (s.done || s.busted) return;
+  if (s.done || s.dead) return;
   // pick something to paint
   if (!pal.target) {
     const regs = [1, 2, 3, 4, 5].filter(r => !s.regDone[r]);
@@ -726,15 +805,6 @@ function celebrate(s) {
       }
     }
   }
-}
-
-function bust(G, scene, by) {
-  const s = scene.s;
-  s.busted = true;
-  s.bustedT = 0;
-  s.bustedBy = by;
-  sfxSpray(false);
-  sfxBust();
 }
 
 export const resultScene = {

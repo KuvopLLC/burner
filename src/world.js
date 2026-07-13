@@ -1,4 +1,4 @@
-// world.js — run state: the writer, the book of pieces, strikes, and
+// world.js — run state: the writer, the book of pieces, hearts, and
 // high scores. Score IS the count of burners you got up.
 
 import { SPOTS } from './data.js';
@@ -8,9 +8,9 @@ export function newRun(tag, seed) {
   return {
     tag, seed,
     rng: makeRng(seed ^ 0xBEEF),
-    strikes: 0,
+    hearts: 3,        // Mario rules: contact costs power, then hearts
     bursts: 0,        // for the results screen
-    hides: 0,
+    jumps: 0,
     pieces: [],       // book entries
     partner: null,    // current mission partner
     piece: null,      // current mission piece

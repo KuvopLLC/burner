@@ -24,20 +24,18 @@ setInterval(() => {
   else if (G.sceneName === 'map') key('Enter');
   else if (G.sceneName === 'doors') key('Enter');
   else if (G.sceneName === 'paint' && s) {
-    mouse(160, 80); // kid stands mid-wall
-    if (phase === 0) { // test 1: dog + hiding = survive
-      s.dog = { x: -20, dir: 1, bit: false };
-      key(' ', 'down');
-      phase = 1; console.log('TEST1: dog released, kid hiding');
-    } else if (phase === 1 && !s.dog) {
-      key(' ', 'up');
-      console.log(`TEST1 RESULT: busted=${s.busted} (want false)`);
+    mouse(192, 80); // kid stands mid-wall
+    if (phase === 0) { // test 1: powered kid takes a dog hit -> loses flow, keeps hearts
+      G.scene.spawnEnemy(s, 'dog', 1);
+      phase = 1; console.log(`TEST1: dog released. powered=${s.powered} hearts=${G.run.hearts}`);
+    } else if (phase === 1 && s.enemies.length === 0) {
+      console.log(`TEST1 RESULT: powered=${s.powered} hearts=${G.run.hearts} (want false/3)`);
       phase = 2;
-    } else if (phase === 2) { // test 2: dog + exposed = bit
-      s.dog = { x: -20, dir: 1, bit: false };
-      phase = 3; console.log('TEST2: dog released, kid exposed');
-    } else if (phase === 3 && s.busted) {
-      console.log(`TEST2 RESULT: busted=${s.busted} by=${s.bustedBy} (want true/dog)`);
+    } else if (phase === 2) { // test 2: small kid takes a hit -> loses a heart
+      G.scene.spawnEnemy(s, 'dog', 1);
+      phase = 3; console.log('TEST2: second dog released');
+    } else if (phase === 3 && s.enemies.length === 0) {
+      console.log(`TEST2 RESULT: hearts=${G.run.hearts} (want 2)`);
       phase = 4;
     }
   }
