@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>body{margin:0;background:#0a0a0f}canvas{image-rendering:pixelated;width:1280px;height:800px}</style></head>
+<body><canvas id="p" width="320" height="200"></canvas>
+<script type="module">
+import { makePiece, renderPiece } from '../src/gen.js';
+import { rect } from '../src/gfx.js';
+const ctx = document.getElementById('p').getContext('2d');
+ctx.imageSmoothingEnabled = false;
+rect(ctx, 0, 0, 320, 200, '#101018');
+// a grid of pieces with varied seeds — check motif variety and placement
+const seeds = [11, 222, 3333, 44444, 555555, 987654];
+seeds.forEach((sd, i) => {
+  const p = makePiece('ZEKE', sd, 'KWIK 12');
+  ctx.drawImage(renderPiece(p), (i % 2) * 160 + 4, Math.floor(i / 2) * 66 + 2, 152, 57);
+});
+</script></body></html>

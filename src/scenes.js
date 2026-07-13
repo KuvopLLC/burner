@@ -233,7 +233,7 @@ const sketchScene = {
   enter(G) {
     const run = G.run;
     const seed = (hashStr(run.tag + run.partner.tag) + (level(run) + 1) * 7919) >>> 0;
-    run.piece = makePiece(run.tag, seed);
+    run.piece = makePiece(run.tag, seed, run.partner.tag);
     this.sketch = renderSketch(run.piece);
     this.t = 0;
   },
@@ -250,6 +250,7 @@ const sketchScene = {
     text(ctx, 'THE BLACK BOOK', 34, 26, '#6a5a3a');
     text(ctx, `PIECE NO. ${level(run) + 1}`, 34, 38, '#6a5a3a');
     text(ctx, `W/ ${run.partner.tag}`, 34, 50, '#a05030');
+    text(ctx, `"${run.piece.word}"`, 100, 50, '#6a5a3a');
     // sketch reveals left to right
     const reveal = Math.min(1, this.t / 1.6) * run.piece.w;
     ctx.save();

@@ -44,23 +44,173 @@ function shift(src, w, h, dx, dy) {
   return b;
 }
 
-export function makePiece(tag, seed) {
+// Decorations stamped into the piece mask — they get fills, outline,
+// shadow, and cloud exactly like the letters do, so crowns and critters
+// read as part of the burner.
+const MOTIFS = {
+  crown: [
+    'X....X....X',
+    'X...XXX...X',
+    'XX..XXX..XX',
+    'XXXXXXXXXXX',
+    '.XXXXXXXXX.',
+  ],
+  star: [
+    '...X...',
+    '..XXX..',
+    'XXXXXXX',
+    '.XXXXX.',
+    '.XX.XX.',
+    'X.....X',
+  ],
+  arrow: [
+    '........X..',
+    '.........X.',
+    'XXXXXXXXXXX',
+    '.........X.',
+    '........X..',
+  ],
+  heart: [
+    '.XX..XX.',
+    'XXXXXXXX',
+    'XXXXXXXX',
+    '.XXXXXX.',
+    '..XXXX..',
+    '...XX...',
+  ],
+  bolt: [
+    '...XXXX',
+    '..XXXX.',
+    '.XXXX..',
+    'XXXXXXX',
+    '..XXXX.',
+    '.XXXX..',
+    'XXXX...',
+    'XX.....',
+  ],
+  rat: [
+    '............XX..',
+    '.....XXXXXXXXXX.',
+    'XX..XXXXXXXXXXXX',
+    '..XXXXXXXXXXXXX.',
+    '....XX...XX.....',
+  ],
+  cat: [
+    '.X.X.......X',
+    '.XXX.......X',
+    '.XXX......XX',
+    '..XX......X.',
+    '.XXXX....XX.',
+    'XXXXXX..XXX.',
+    'XXXXXXXXXXX.',
+    'XXXXXXXXXX..',
+    '.XX..XX.....',
+  ],
+  pigeon: [
+    '....XX......',
+    '...XXXX.....',
+    '..XXXXXXXXX.',
+    '.XXXXXXXXXX.',
+    'XXXXXXXXXX..',
+    '..XXXXXXX...',
+    '....XX..XX..',
+  ],
+};
+
+const ANIMALS = ['rat', 'cat', 'pigeon'];
+
+// What tonight's piece says — your tag, your partner's, or street talk
+const WORDS = [
+  'FRESH', 'WILD', 'STYLE', 'BURN', 'DOPE', 'BRONX', 'KING', 'FLY',
+  'CRAZY', 'ZOOM', 'BOOM', 'POW', 'REBEL', 'FAME', 'TUFF', 'RAW', 'JAM',
+];
+
+function stampMask(c, rows, x0, y0, sc) {
+  for (let ry = 0; ry < rows.length; ry++) {
+    for (let rx = 0; rx < rows[ry].length; rx++) {
+      if (rows[ry][rx] === 'X') c.fillRect(x0 + rx * sc, y0 + ry * sc, sc, sc);
+    }
+  }
+}
+
+export function makePiece(tag, seed, partnerTag = null) {
   const rng = makeRng(seed);
   const w = PIECE_W, h = PIECE_H;
 
-  // 1. Render the tag as big bouncing letters (5x7 font, scaled fat)
+  // 0. Tonight's subject + decorations
+  let word = tag;
+  const roll = rng();
+  if (partnerTag && roll < 0.15) word = partnerTag;
+  else if (roll < 0.45) word = pick(rng, WORDS);
+  const animal = rng() < 0.35 ? pick(rng, ANIMALS) : null;
+  const animalSide = rng() < 0.5 ? -1 : 1;
+  const hasCrown = rng() < 0.45;
+  const hasArrows = !animal && rng() < 0.4;
+  const nStars = Math.floor(rng() * 3) + (hasCrown ? 0 : 1);
+  const hasCharm = !animal && rng() < 0.3 ? (rng() < 0.5 ? 'heart' : 'bolt') : null;
+
+  // 1. Render the word as big bouncing letters (5x7 font, scaled fat)
   const [lcv, lc] = makeCanvas(w, h);
-  const chars = tag.split('');
-  const s = Math.max(3, Math.min(8, Math.floor((w - 50) / (chars.length * 4.6))));
+  const chars = word.split('');
+  const reserve = animal ? 42 : 0;
+  const s = Math.max(3, Math.min(8, Math.floor((w - 50 - reserve) / (chars.length * 4.6))));
   const adv = 4.6 * s; // letters overlap a touch, graffiti style
   const total = adv * (chars.length - 1) + 5 * s;
-  let x = (w - total) / 2;
+  let x = (w - total) / 2 - animalSide * (reserve / 2);
+  const startX = x;
   const yBase = h / 2 - 3.5 * s;
   const bounce = rng() * 6.28;
   for (let i = 0; i < chars.length; i++) {
     const wob = Math.sin(bounce + i * 1.9) * s * 0.7;
     text(lc, chars[i], x, yBase + wob, '#fff', s);
     x += adv;
+  }
+  const endX = x - adv + 5 * s;
+
+  // 1b. Stamp the whimsy into the same mask
+  lc.fillStyle = '#fff';
+  const clampX = (v, mw) => Math.max(10, Math.min(w - 10 - mw, Math.round(v)));
+  const clampY = (v, mh) => Math.max(10, Math.min(h - 10 - mh, Math.round(v)));
+  if (animal) {
+    const rows = MOTIFS[animal], sc = 2;
+    const mw = rows[0].length * sc, mh = rows.length * sc;
+    const ax = animalSide === 1 ? endX + 8 : startX - mw - 8;
+    stampMask(lc, rows, clampX(ax, mw), clampY(yBase + 7 * s - mh, mh), sc);
+  }
+  if (hasCrown) {
+    const rows = MOTIFS.crown, sc = 2;
+    const mw = rows[0].length * sc, mh = rows.length * sc;
+    const cx = startX + rng() * Math.max(1, (endX - startX) - mw);
+    stampMask(lc, rows, clampX(cx, mw), clampY(yBase - mh + 2, mh), sc);
+  }
+  if (hasArrows) {
+    const rows = MOTIFS.arrow, sc = 2;
+    const mw = rows[0].length * sc, mh = rows.length * sc;
+    const ay = yBase + 3.5 * s - mh / 2;
+    stampMask(lc, rows, clampX(endX - 2, mw), clampY(ay, mh), sc);
+    // mirrored on the left
+    const [mcv, mc] = makeCanvas(mw, mh);
+    mc.fillStyle = '#fff';
+    stampMask(mc, rows, 0, 0, sc);
+    lc.save();
+    lc.translate(clampX(startX - mw + 2, mw) + mw, clampY(ay, mh));
+    lc.scale(-1, 1);
+    lc.drawImage(mcv, 0, 0);
+    lc.restore();
+  }
+  if (hasCharm) {
+    const rows = MOTIFS[hasCharm], sc = 2;
+    const mw = rows[0].length * sc, mh = rows.length * sc;
+    const side = rng() < 0.5 ? -1 : 1;
+    const hx = side === 1 ? endX + 6 : startX - mw - 6;
+    stampMask(lc, rows, clampX(hx, mw), clampY(yBase - mh / 2 + rng() * 20, mh), sc);
+  }
+  for (let n = 0; n < nStars; n++) {
+    const rows = MOTIFS.star, sc = rng() < 0.5 ? 1 : 2;
+    const mw = rows[0].length * sc, mh = rows.length * sc;
+    const sx = 14 + rng() * (w - 28 - mw);
+    const sy = rng() < 0.5 ? yBase - mh - 2 - rng() * 8 : yBase + 7 * s + 2 + rng() * 6;
+    stampMask(lc, rows, clampX(sx, mw), clampY(sy, mh), sc);
   }
 
   // 2. Letter mask
@@ -111,7 +261,7 @@ export function makePiece(tag, seed) {
   const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   for (let i = 0; i < w * h; i++) if (regions[i]) counts[regions[i]]++;
 
-  return { tag, seed, w, h, regions, palette, counts };
+  return { tag, word, seed, w, h, regions, palette, counts };
 }
 
 // Full-color render of a piece (partner samples, finished walls)

@@ -99,7 +99,7 @@ export const paintScene = {
       dog: null,          // {x, dir, bit}
       ped: null,
       pedTimer: 5 + rng() * 6,
-      msg: 'POINT + [X] SPRAY · [1-7] CANS · [SPACE] HIDE',
+      msg: '[X] SPRAY · ARROWS SWITCH CANS · [SPACE] HIDE',
       msgT: 5,
       sprayT: 0,
       fx: [],
@@ -249,6 +249,8 @@ export const paintScene = {
     if (e.type === 'down') {
       if (e.key === ' ') { s.hiding = true; sfxSpray(false); s.sprayT = 0; }
       if (e.key === 'x' || e.key === 'X') burst(G, s, G.mouse.x, G.mouse.y);
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { s.selected = (s.selected + 1) % s.bag.length; sfxTick(); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { s.selected = (s.selected + s.bag.length - 1) % s.bag.length; sfxTick(); }
       const n = parseInt(e.key, 10);
       if (n >= 1 && n <= s.bag.length) s.selected = n - 1;
       if (e.key === 'Enter') {
