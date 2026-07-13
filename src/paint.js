@@ -5,7 +5,7 @@
 // color region and the piece goes up; get caught three times and the
 // run is over.
 
-import { W, H, text, centerText, scenter, stext, rect, frame, panel, meter, makeCanvas, drawSurface, makePolaroid } from './gfx.js';
+import { W, H, text, textWidth, centerText, scenter, stext, rect, frame, panel, meter, makeCanvas, drawSurface, makePolaroid } from './gfx.js';
 import { COLORS, PED_LINES } from './data.js';
 import { makeRng, pick, irange } from './rng.js';
 import { makeKid, makeCop, makeDog, makePedestrian, renderSketch, renderPiece, pieceShade } from './gen.js';
@@ -570,7 +570,13 @@ export const paintScene = {
       text(ctx, String(i + 1), cx + 17, 186, isSel ? '#fff' : '#777');
     }
 
-    if (s.msgT > 0) scenter(ctx, s.msg, 156, '#ffe040');
+    if (s.msgT > 0) {
+      const mw = textWidth(s.msg) + 14;
+      ctx.globalAlpha = 0.72;
+      rect(ctx, (W - mw) / 2, 152, mw, 13, '#0b0b12');
+      ctx.globalAlpha = 1;
+      scenter(ctx, s.msg, 155, '#ffe040');
+    }
 
     if (s.done) {
       scenter(ctx, s.doneAll ? 'BURNED IT!' : 'IT READS — YOU\'RE UP!', 80, '#40e050', 2);
@@ -813,8 +819,8 @@ export const resultScene = {
     // compose the finished wall for the polaroid
     const [comp, cc] = makeCanvas(264, 106);
     drawSurface(cc, 0, 0, 264, 106, run.spot.kind, makeRng(7), run.spot.line);
-    cc.drawImage(G.mission.paintCv, PX - 28, PY - 26);
-    const polaroid = makePolaroid(comp, 0, 0, 264, 106);
+    cc.drawImage(G.mission.paintCv, PX - SURF_X, PY - 26);
+    const polaroid = makePolaroid(comp, 0, 0, 264, 106, `"${run.piece.word}"`);
     const sketch = renderSketch(run.piece);
     addPiece(run, {
       spotId: run.spot.id,
@@ -838,8 +844,8 @@ export const resultScene = {
     rect(ctx, 0, 0, W, H, '#0c0c1e');
     ctx.drawImage(s.comp, 60, 20);
     // polaroid drops in
-    const py = Math.min(120, -60 + s.t * 260);
-    ctx.drawImage(s.polaroid, 300, py);
+    const py = Math.min(128, -70 + s.t * 280);
+    ctx.drawImage(s.polaroid, 282, py);
 
     scenter(ctx, 'UP!', 148, '#40e050', 2);
     if (s.t > 1 && Math.sin(s.t * 4) > -0.3) scenter(ctx, '[ENTER] THE BOOK', 186, '#ffe040');

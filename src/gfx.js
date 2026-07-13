@@ -194,13 +194,19 @@ export function drawSurface(ctx, x, y, w, h, kind, rng, line) {
   }
 }
 
-// A polaroid: snapshot of a canvas region in a white frame
-export function makePolaroid(srcCanvas, sx, sy, sw, sh) {
-  const pw = 64, ph = 58;
+// A polaroid: snapshot of a canvas region in a white frame. Landscape
+// format, photo kept at its true ratio, room to scribble underneath.
+export function makePolaroid(srcCanvas, sx, sy, sw, sh, caption = '') {
+  const photoW = 84;
+  const photoH = Math.round(photoW * (sh / sw)); // true ratio
+  const pw = photoW + 10, ph = photoH + 24;
   const [cv, c] = makeCanvas(pw, ph);
   c.fillStyle = '#f0ede4';
   c.fillRect(0, 0, pw, ph);
-  c.drawImage(srcCanvas, sx, sy, sw, sh, 4, 4, pw - 8, ph - 18);
+  c.imageSmoothingEnabled = false;
+  c.drawImage(srcCanvas, sx, sy, sw, sh, 5, 5, photoW, photoH);
+  frame(c, 4, 4, photoW + 2, photoH + 2, '#b8b4a8');
+  if (caption) text(c, caption.slice(0, 12), 7, photoH + 12, '#8a8578');
   c.strokeStyle = '#c8c4b8';
   c.strokeRect(0.5, 0.5, pw - 1, ph - 1);
   return cv;

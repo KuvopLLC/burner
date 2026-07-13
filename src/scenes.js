@@ -429,7 +429,7 @@ const bookScene = {
       text(ctx, `NO.${e.id} ${spot.name}`, x, 16, '#4a4034');
       text(ctx, `W/ ${e.partnerTag}`, x, 29, '#a05030');
       ctx.drawImage(e.sketch, x, 40, 100, 37);
-      ctx.drawImage(e.polaroid, x + 60, 80);
+      ctx.drawImage(e.polaroid, x + 40, 84);
       // the check mark
       text(ctx, '✓', x + 108, 40, '#308030', 2);
       text(ctx, e.status === 'UP' ? 'STILL UP' : 'BUFFED', x, 86,
