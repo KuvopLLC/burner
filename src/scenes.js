@@ -429,10 +429,10 @@ const bookScene = {
       text(ctx, `NO.${e.id} ${spot.name}`, x, 16, '#4a4034');
       text(ctx, `W/ ${e.partnerTag}`, x, 29, '#a05030');
       ctx.drawImage(e.sketch, x, 40, 100, 37);
-      ctx.drawImage(e.polaroid, x + 40, 84);
+      ctx.drawImage(e.polaroid, x + 36, 82);
       // the check mark
       text(ctx, '✓', x + 108, 40, '#308030', 2);
-      text(ctx, e.status === 'UP' ? 'STILL UP' : 'BUFFED', x, 86,
+      text(ctx, e.status === 'UP' ? 'STILL UP' : 'BUFFED', x + 36, 144,
         e.status === 'UP' ? '#308030' : '#8a7a5a');
     });
     if (!run.pieces.length) centerText(ctx, 'NOTHING IN THE BOOK YET', 88, '#8a7a5a');

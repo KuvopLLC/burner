@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>body{margin:0;background:#000;display:flex}canvas{image-rendering:pixelated}</style></head>
+<body><canvas id="screen" width="384" height="216"></canvas>
+<script type="module">
+import '../src/main.js';
+import { newRun, addPiece } from '../src/world.js';
+import { makePiece, renderPiece, renderSketch } from '../src/gen.js';
+import { makeCanvas, drawSurface, makePolaroid } from '../src/gfx.js';
+import { PARTNERS, SPOTS } from '../src/data.js';
+import { makeRng } from '../src/rng.js';
+
+setTimeout(() => {
+  const G = window.BURNER;
+  G.run = newRun('ZEKE', 42);
+  G.run.partner = PARTNERS[0];
+  for (const [seed, spotIdx] of [[11, 0], [222, 3]]) {
+    const piece = makePiece('ZEKE', seed, 'KWIK 12');
+    const full = renderPiece(piece);
+    const [comp, cc] = makeCanvas(264, 106);
+    drawSurface(cc, 0, 0, 264, 106, SPOTS[spotIdx].kind, makeRng(7), SPOTS[spotIdx].line);
+    cc.drawImage(full, 12, 8);
+    addPiece(G.run, {
+      spotId: SPOTS[spotIdx].id,
+      sketch: renderSketch(piece),
+      polaroid: makePolaroid(comp, 0, 0, 264, 106, `"${piece.word}"`),
+      partnerTag: 'KWIK 12',
+    });
+  }
+  G.bookReturn = 'title';
+  G.go('book');
+}, 300);
+setInterval(() => { const G = window.BURNER; if (G) G.step(0.1); }, 100);
+</script></body></html>
