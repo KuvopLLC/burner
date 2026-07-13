@@ -2,10 +2,10 @@
 // the partner tumbler, the sketch, the Bronx map, the black book,
 // the between-nights breather, game over.
 
-import { W, H, text, textWidth, centerText, rect, frame, panel, dither } from './gfx.js';
+import { W, H, text, textWidth, centerText, stext, scenter, rect, frame, panel, dither } from './gfx.js';
 import { PARTNERS, SPOTS } from './data.js';
 import { makeRng, irange } from './rng.js';
-import { makePiece, renderPiece, renderSketch, makeKid } from './gen.js';
+import { makePiece, renderPiece, renderSketch, makeKid, makeCop, makeDog } from './gen.js';
 import { newRun, availableSpots, level, loadHighScores, saveHighScore } from './world.js';
 import { paintScene, resultScene, drawCrewCorner } from './paint.js';
 import { drawSpriteFlip, idleFrame } from './scenery.js';
@@ -37,15 +37,30 @@ function drawTwinkles(ctx, t, seed, count, y0, y1) {
   ctx.globalAlpha = 1;
 }
 
+// the arcade header: 1UP / HIGH SCORE, on every menu screen
+let hiTop = 0;
+function refreshHi() { hiTop = (loadHighScores()[0] || {}).piecesUp || 0; }
+
+function drawHeader(G, ctx, t) {
+  const cur = G.run ? G.run.pieces.length : 0;
+  if (!G.run || Math.sin(t * 5) > -0.4) stext(ctx, '1UP', 24, 2, '#ff4040');
+  stext(ctx, String(cur), 30, 10, '#fff');
+  scenter(ctx, 'HIGH SCORE', 2, '#ff4040');
+  const hs = String(Math.max(hiTop, cur));
+  stext(ctx, hs, (W - hs.length * 6) / 2, 10, '#fff');
+}
+
 // ---- TITLE ----------------------------------------------------------------
 
 const titleScene = {
   enter(G) {
-    playBeat(777);
+    playBeat(777, 'electro');
+    refreshHi();
+    G.run = null; // back on the marquee, no live run
     const rng = makeRng(99);
     this.drips = [];
     for (let i = 0; i < 14; i++) {
-      this.drips.push({ x: 92 + rng() * 136, y: 70, len: 4 + rng() * 14, sp: 3 + rng() * 6 });
+      this.drips.push({ x: 92 + rng() * 136, y: 64, len: 4 + rng() * 14, sp: 3 + rng() * 6 });
     }
     // a skyline for the logo to burn over
     this.bldgs = [];
@@ -58,10 +73,12 @@ const titleScene = {
     this.trainX = -180;
     this.t = 0;
     this.hs = loadHighScores();
+    this.copS = makeCop(11).idle[0];
+    this.dogS = makeDog(22).idle[0];
   },
   update(G, dt) {
     this.t += dt;
-    for (const d of this.drips) if (d.y - 70 < d.len) d.y += d.sp * dt;
+    for (const d of this.drips) if (d.y - 64 < d.len) d.y += d.sp * dt;
     this.trainX += dt * 46;
     if (this.trainX > W + 60) this.trainX = -200;
   },
@@ -91,28 +108,40 @@ const titleScene = {
       for (let wx = 4; wx < 70; wx += 8) rect(ctx, cx + wx, 152, 4, 4, '#8a7a48');
       rect(ctx, cx + (carN === 0 ? 72 : -1), 154, 2, 2, '#ffefc0');
     }
-    centerText(ctx, 'KUVOP PRESENTS', 26, '#666');
-    centerText(ctx, 'BURNER', 42, '#ff3060', 4);
+    drawHeader(G, ctx, this.t);
+    scenter(ctx, 'KUVOP PRESENTS', 22, '#9a9aa8');
+    centerText(ctx, 'BURNER', 36, '#ff3060', 4);
     // glint sweeping the logo
     const sweep = (this.t % 4) / 4 * (W - 120) + 60;
     ctx.save();
     ctx.beginPath();
-    ctx.rect(sweep, 40, 9, 32);
+    ctx.rect(sweep, 34, 9, 32);
     ctx.clip();
-    centerText(ctx, 'BURNER', 42, '#ffd7e2', 4);
+    centerText(ctx, 'BURNER', 36, '#ffd7e2', 4);
     ctx.restore();
     ctx.fillStyle = '#ff3060';
-    for (const d of this.drips) ctx.fillRect(Math.round(d.x), 70, 2, Math.round(d.y - 70) + 2);
-    centerText(ctx, 'GET UP. STAY UP.', 100, '#ffe040');
-    if (this.hs.length) {
-      centerText(ctx, '-- KINGS OF THE LINE --', 114, '#888');
-      this.hs.slice(0, 3).forEach((h, i) => {
-        centerText(ctx, `${h.tag}  ${h.piecesUp} UP`, 124 + i * 10, i === 0 ? '#ffe040' : '#aaa');
-      });
+    for (const d of this.drips) ctx.fillRect(Math.round(d.x), 64, 2, Math.round(d.y - 64) + 2);
+    scenter(ctx, 'GET UP. STAY UP.', 92, '#39c8e0');
+
+    // attract rotation: the opposition / the kings
+    const phase = this.hs.length ? Math.floor(this.t / 5) % 2 : 0;
+    if (phase === 0) {
+      scenter(ctx, '- KNOW THE OPPOSITION -', 104, '#ff4040');
+      ctx.drawImage(this.copS, 84, 112);
+      stext(ctx, 'THE 5-0', 112, 118, '#fff');
+      stext(ctx, '=1 STRIKE', 112, 128, '#9a9aa8');
+      ctx.drawImage(this.dogS, 186, 122);
+      stext(ctx, 'YARD DOG', 216, 118, '#fff');
+      stext(ctx, '=1 BITE', 216, 128, '#9a9aa8');
     } else {
-      centerText(ctx, '[X] SPRAY   ARROWS: CANS   [SPACE] HIDE', 124, '#888');
+      scenter(ctx, '- KINGS OF THE LINE -', 104, '#ff4040');
+      this.hs.slice(0, 3).forEach((h, i) => {
+        const line = `${i + 1}. ${h.tag.padEnd(10, '.')}${String(h.piecesUp).padStart(3, '.')} UP`;
+        scenter(ctx, line, 116 + i * 10, i === 0 ? '#ffe040' : '#fff');
+      });
     }
-    if (Math.sin(this.t * 4) > -0.2) centerText(ctx, '[ENTER] START WRITING', 178, '#fff');
+    if (Math.sin(this.t * 4) > -0.2) scenter(ctx, 'PRESS [ENTER] TO WRITE', 172, '#ffe040');
+    scenter(ctx, '© 1986 KUVOP', 190, '#666');
   },
 };
 
@@ -142,18 +171,27 @@ const nameScene = {
   draw(G, ctx) {
     rect(ctx, 0, 0, W, H, '#0c0c1e');
     drawTwinkles(ctx, this.t, 777, 22, 0, 40);
-    centerText(ctx, 'EVERY WRITER NEEDS A NAME', 26, '#888');
-    centerText(ctx, 'WRITE YOUR TAG', 40, '#fff', 2);
-    const shown = this.tag + (Math.sin(this.t * 6) > 0 ? '_' : ' ');
-    centerText(ctx, shown, 66, '#ffe040', 2);
-    if (this.preview) {
-      // how it might look on a wall someday
-      ctx.drawImage(this.preview, 40, 88, 240, 90);
-    } else {
-      centerText(ctx, '. . .', 126, '#33334a', 2);
+    drawHeader(G, ctx, this.t);
+    scenter(ctx, 'WRITE YOUR TAG', 24, '#ff4040', 2);
+    // eight letter slots, arcade initials style
+    const x0 = (W - 8 * 18) / 2;
+    for (let i = 0; i < 8; i++) {
+      const sx = x0 + i * 18;
+      if (i < this.tag.length) {
+        stext(ctx, this.tag[i], sx + 1, 46, '#fff', 2);
+      }
+      const isCursor = i === this.tag.length;
+      rect(ctx, sx, 62, 12, 2,
+        isCursor && Math.sin(this.t * 6) > 0 ? '#ffe040' : i < this.tag.length ? '#39c8e0' : '#33334a');
     }
-    centerText(ctx, '2-8 LETTERS. SHORT NAMES GO UP FASTER.', 182, '#888');
-    if (this.tag.length >= 2) centerText(ctx, '[ENTER] THAT\'S ME', 192, '#fff');
+    if (this.preview) {
+      // how it's going to look on a wall
+      ctx.drawImage(this.preview, 40, 78, 240, 90);
+    } else {
+      scenter(ctx, 'A-Z 0-9', 116, '#33334a', 2);
+    }
+    scenter(ctx, '2-8 LETTERS. SHORT NAMES GO UP FASTER.', 178, '#39c8e0');
+    if (this.tag.length >= 2 && Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] THAT\'S ME', 190, '#ffe040');
   },
 };
 
@@ -162,7 +200,7 @@ const nameScene = {
 const partnerScene = {
   enter(G) {
     const run = G.run;
-    playBeat(hashStr('tumbler') + level(run));
+    playBeat(hashStr('tumbler') + level(run) * 37, 'funk');
     this.cands = PARTNERS.slice();
     this.target = irange(run.rng, 0, this.cands.length - 1);
     this.pos = 0;               // reel position in partner-heights
@@ -200,10 +238,11 @@ const partnerScene = {
   draw(G, ctx) {
     const run = G.run;
     rect(ctx, 0, 0, W, H, '#0c0c1e');
-    centerText(ctx, 'TONIGHT YOU\'RE PAINTING WITH...', 10, '#888');
+    drawHeader(G, ctx, this.animT || 0);
+    scenter(ctx, 'TONIGHT YOU\'RE PAINTING WITH...', 20, '#39c8e0');
 
     // the reel window
-    const rw = 130, rh = 64, rx = 20, ry = 26;
+    const rw = 130, rh = 64, rx = 20, ry = 30;
     panel(ctx, rx, ry, rw, rh, '#08080e', this.locked ? '#ffe040' : '#3a3a52');
     ctx.save();
     ctx.beginPath();
@@ -224,7 +263,7 @@ const partnerScene = {
     if (this.locked) {
       const p = run.partner;
       if (this.lockT < 0.3) frame(ctx, rx - 2, ry - 2, rw + 4, rh + 4, '#fff'); // POP flash
-      centerText(ctx, `*POP* ${run.tag} + ${p.tag}`, 98, '#ffe040', 1);
+      scenter(ctx, `*POP* ${run.tag} + ${p.tag}`, 100, '#ffe040', 1);
       panel(ctx, 20, 110, 152, 78, '#101018', '#3a3a52');
       text(ctx, p.style, 26, 114, '#ff3060');
       const bioEnd = wrapText(ctx, p.bio, 26, 126, 140, '#ccc');
@@ -236,9 +275,9 @@ const partnerScene = {
         ctx.drawImage(this.art, 180, 118, 120, 45);
         frame(ctx, 180, 118, 120, 45, '#3a3a52');
       }
-      if (this.lockT > 0.6) centerText(ctx, '[ENTER] SKETCH THE PIECE', 188, '#fff');
+      if (this.lockT > 0.6 && Math.sin(this.lockT * 4) > -0.3) scenter(ctx, '[ENTER] SKETCH THE PIECE', 188, '#ffe040');
     } else {
-      centerText(ctx, 'THE TUMBLER SPINS...', 110, '#666');
+      if (Math.sin((this.animT || 0) * 5) > -0.3) scenter(ctx, 'THE TUMBLER SPINS...', 110, '#ffe040');
     }
   },
 };
@@ -307,6 +346,7 @@ let bronxMap = null; // built once, kept for the whole session
 
 const mapScene = {
   enter(G) {
+    playBeat(hashStr('map') + level(G.run) * 71, 'latin');
     if (!bronxMap) bronxMap = buildBronxMap();
     this.spots = availableSpots(G.run).slice().sort((a, b) => a.x - b.x);
     this.sel = 0;
@@ -400,7 +440,7 @@ const bookScene = {
 
 const intermissionScene = {
   enter(G) {
-    playBeat(hashStr('night') + level(G.run));
+    playBeat(hashStr('night') + level(G.run) * 53, 'boombap');
     this.t = 0;
     this.kid = makeKid(hashStr(G.run.tag), hashStr(G.run.tag) % 360);
     this.pal = G.run.partner ? makeKid(hashStr(G.run.partner.tag), G.run.partner.hue) : null;
@@ -443,15 +483,16 @@ const intermissionScene = {
     rect(ctx, px, 168, 4, 3, '#8a8a96'); rect(ctx, px + 3, 166, 2, 2, '#8a8a96');
     if (Math.sin(this.t * 3.1) > 0.8) rect(ctx, px + 4, 165, 1, 1, '#8a8a96'); // peck
 
+    drawHeader(G, ctx, this.t);
     const n = level(run);
-    centerText(ctx, `NIGHT ${n + 1}`, 16, '#ffe040', 2);
-    centerText(ctx, `${n} BURNER${n === 1 ? '' : 'S'} UP`, 42, '#fff');
-    centerText(ctx, `STRIKES ${run.strikes}/3`, 54, run.strikes ? '#ff5030' : '#666');
-    centerText(ctx, n >= 3 ? 'THE STREETS KNOW YOUR NAME. SO DO THE COPS.'
+    scenter(ctx, `NIGHT ${n + 1}`, 22, '#ffe040', 2);
+    scenter(ctx, `${n} BURNER${n === 1 ? '' : 'S'} UP`, 46, '#fff');
+    scenter(ctx, `STRIKES ${run.strikes}/3`, 58, run.strikes ? '#ff4040' : '#9a9aa8');
+    scenter(ctx, n >= 3 ? 'THE STREETS KNOW YOUR NAME. SO DO THE COPS.'
       : n >= 1 ? 'WORD IS GETTING AROUND.'
-      : 'THE CITY DOESN\'T KNOW YOU YET.', 68, '#888');
-    if (Math.sin(this.t * 4) > -0.3) centerText(ctx, '[ENTER] PAINT TONIGHT', 124, '#fff');
-    centerText(ctx, '[B] FLIP THROUGH THE BOOK', 138, '#c0a060');
+      : 'THE CITY DOESN\'T KNOW YOU YET.', 72, '#39c8e0');
+    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] PAINT TONIGHT', 124, '#ffe040');
+    scenter(ctx, '[B] FLIP THROUGH THE BOOK', 138, '#c0a060');
   },
 };
 
@@ -482,12 +523,23 @@ const gameoverScene = {
     ctx.globalAlpha = 0.09 + Math.max(0, -ph) * 0.08;
     rect(ctx, W / 2, 0, W / 2, H, '#2040ff');
     ctx.globalAlpha = 1;
-    centerText(ctx, 'THREE STRIKES.', 40, '#ff3030', 2);
-    centerText(ctx, 'YOUR PARENTS PICK YOU UP FROM THE PRECINCT.', 66, '#c88');
-    centerText(ctx, `${run.tag} GOT UP ${n} BURNER${n === 1 ? '' : 'S'}`, 96, '#ffe040', 1);
-    if (this.isKing && n > 0) centerText(ctx, '*** NEW KING OF THE LINE ***', 120, '#40e050');
-    centerText(ctx, 'BUT THE PIECES ARE STILL RUNNING...', 148, '#888');
-    centerText(ctx, '[ENTER] BACK TO THE TITLE', 176, '#fff');
+    drawHeader(G, ctx, this.t);
+    scenter(ctx, 'GAME OVER', 28, '#ff4040', 3);
+    scenter(ctx, 'THREE STRIKES. THE PRECINCT CALLS YOUR MOTHER.', 58, '#39c8e0');
+    scenter(ctx, '- RESULTS -', 76, '#ff4040');
+    const rows = [
+      ['NIGHTS SURVIVED', n],
+      ['BURNERS UP', n],
+      ['BURSTS SPRAYED', run.bursts],
+      ['CLOSE CALLS', run.hides],
+    ];
+    rows.forEach(([label, v], i) => {
+      const line = label.padEnd(17, '.') + String(v).padStart(5, '.');
+      scenter(ctx, line, 90 + i * 11, '#fff');
+    });
+    if (this.isKing && n > 0) scenter(ctx, '*** NEW KING OF THE LINE ***', 140, '#40e050');
+    scenter(ctx, 'BUT THE PIECES ARE STILL RUNNING...', 156, '#9a9aa8');
+    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] BACK TO THE TITLE', 178, '#ffe040');
   },
 };
 

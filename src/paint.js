@@ -5,7 +5,7 @@
 // color region and the piece goes up; get caught three times and the
 // run is over.
 
-import { W, H, text, centerText, rect, frame, panel, meter, makeCanvas, drawSurface, makePolaroid } from './gfx.js';
+import { W, H, text, centerText, scenter, stext, rect, frame, panel, meter, makeCanvas, drawSurface, makePolaroid } from './gfx.js';
 import { COLORS, PED_LINES } from './data.js';
 import { makeRng, pick, irange } from './rng.js';
 import { makeKid, makeCop, makeDog, makePedestrian, renderSketch, renderPiece, pieceShade } from './gen.js';
@@ -30,7 +30,9 @@ export const paintScene = {
     const piece = run.piece, spot = run.spot;
     const lvl = level(run);
     const rng = makeRng(hashStr(run.tag + spot.id) ^ (lvl + 1));
-    playBeat(hashStr('paint' + spot.id) + lvl, spot.kind === 'gallery');
+    const paintStyle = spot.kind === 'gallery' ? 'mellow'
+      : ['boombap', 'funk', 'electro'][(hashStr(spot.id) + lvl) % 3];
+    playBeat(hashStr('paint' + spot.id) + lvl * 131, paintStyle);
     startAmbience(spot.kind === 'wall' ? 'street' : spot.kind);
 
     // Guide: sketch boundaries as faint chalk on the surface
@@ -272,7 +274,7 @@ export const paintScene = {
     const s = this.s;
     if (s.busted || s.done) return;
     if (e.type === 'down') {
-      if (e.key === ' ') { s.hiding = true; sfxSpray(false); s.sprayT = 0; }
+      if (e.key === ' ') { if (!s.hiding) G.run.hides++; s.hiding = true; sfxSpray(false); s.sprayT = 0; }
       if (e.key === 'x' || e.key === 'X') burst(G, s, G.mouse.x, G.mouse.y);
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { s.selected = (s.selected + 1) % s.bag.length; sfxRattle(); }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { s.selected = (s.selected + s.bag.length - 1) % s.bag.length; sfxRattle(); }
@@ -434,14 +436,14 @@ export const paintScene = {
       drawSpriteFlip(ctx, cv, Math.round(s.cop.x), 132, s.cop.leaving);
       if (!s.cop.leaving && s.cop.x <= 290) {
         const flash = Math.sin(s.pulse * 2) > 0;
-        text(ctx, 'HIDE!', Math.round(s.cop.x) - 8, 128, flash ? '#ff3030' : '#ffe040');
+        stext(ctx, 'HIDE!', Math.round(s.cop.x) - 8, 128, flash ? '#ff3030' : '#ffe040');
       }
     }
     if (s.dog) {
       const d = s.dog;
       drawSpriteFlip(ctx, s.dogSprite.walk[Math.floor(s.pulse * 2.2) % 2], Math.round(d.x), 150, d.dir === 1);
       const flash = Math.sin(s.pulse * 3) > 0;
-      text(ctx, 'GRRR', Math.round(d.x), 142, flash ? '#ff3030' : '#ffe040');
+      stext(ctx, 'GRRR', Math.round(d.x), 142, flash ? '#ff3030' : '#ffe040');
     }
 
     // HUD — just the night, the piece, and your strikes, on dark chips
@@ -478,10 +480,10 @@ export const paintScene = {
       text(ctx, String(i + 1), cx + 17, 170, isSel ? '#fff' : '#777');
     }
 
-    if (s.msgT > 0) centerText(ctx, s.msg, 148, '#ffe040');
+    if (s.msgT > 0) scenter(ctx, s.msg, 148, '#ffe040');
 
     if (s.done) {
-      centerText(ctx, s.doneAll ? 'BURNED IT!' : 'IT READS — YOU\'RE UP!', 80, '#40e050', 2);
+      scenter(ctx, s.doneAll ? 'BURNED IT!' : 'IT READS — YOU\'RE UP!', 80, '#40e050', 2);
     }
 
     if (s.busted) {
@@ -529,6 +531,7 @@ function burst(G, s, mx, my) {
   }
 
   if (hit > 0) {
+    G.run.bursts++;
     s.sprayT = 0.14;
     s.fx.push({ x: mx, y: my, t: 0 });
     if (doneRid) {
@@ -643,9 +646,9 @@ export const resultScene = {
     ctx.drawImage(s.polaroid, 236, py);
     text(ctx, 'CLICK.', 244, py + 60, '#888');
 
-    centerText(ctx, 'UP!', 136, '#40e050', 2);
-    centerText(ctx, `NIGHT ${level(run)} CLEARED — ${level(run)} BURNER${level(run) === 1 ? '' : 'S'} UP`, 158, '#ccc');
-    if (s.t > 1) centerText(ctx, '[ENTER] THE BOOK', 182, '#ffe040');
+    scenter(ctx, 'UP!', 136, '#40e050', 2);
+    scenter(ctx, `NIGHT ${level(run)} CLEARED — ${level(run)} BURNER${level(run) === 1 ? '' : 'S'} UP`, 158, '#39c8e0');
+    if (s.t > 1 && Math.sin(s.t * 4) > -0.3) scenter(ctx, '[ENTER] THE BOOK', 182, '#ffe040');
   },
 };
 

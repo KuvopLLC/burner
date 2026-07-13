@@ -74,43 +74,129 @@ function tone(t, freq, dur, vol = 0.12, type = 'square') {
 function square(t, freq, dur, vol = 0.12) { tone(t, freq, dur, vol, 'square'); }
 
 const MINOR_PENT = [0, 3, 5, 7, 10];
+const MINOR = [0, 2, 3, 5, 7, 8, 10];
 function noteFreq(root, semis) { return root * Math.pow(2, semis / 12); }
 
-// Seeded 2-bar (32 sixteenth-steps) pattern
-function makePattern(seed, mellow) {
-  const rng = makeRng(seed);
-  const root = pick(rng, [55, 58.27, 61.74, 49]); // A1, Bb1, B1, G1
-  const kicks = new Array(32).fill(0);
-  const snares = new Array(32).fill(0);
-  const hats = new Array(32).fill(0);
-  const bass = new Array(32).fill(null);
-  const lead = new Array(32).fill(null);
-  for (let bar = 0; bar < 2; bar++) {
-    const o = bar * 16;
-    kicks[o] = 1;
-    if (!mellow) kicks[o + (rng() < 0.5 ? 7 : 10)] = 1;
-    if (!mellow && rng() < 0.5) kicks[o + 3] = 1;
-    snares[o + 4] = 1; snares[o + 12] = 1;
-    if (!mellow && rng() < 0.3) snares[o + 15] = 1; // ghost
-  }
-  for (let i = 0; i < 32; i += 2) hats[i] = (!mellow && rng() < 0.12) ? 2 : 1;
-  if (mellow) for (let i = 0; i < 32; i += 2) if (i % 4 === 2) hats[i] = 0;
-  for (let i = 0; i < 32; i += 4) {
-    if (rng() < 0.8) bass[i] = noteFreq(root, pick(rng, MINOR_PENT));
-    if (!mellow && rng() < 0.3) bass[i + 2] = noteFreq(root, pick(rng, MINOR_PENT));
-  }
-  for (let i = 0; i < 32; i++) {
-    if (rng() < (mellow ? 0.08 : 0.12)) lead[i] = noteFreq(root * 4, pick(rng, MINOR_PENT));
-  }
-  const bpm = mellow ? 68 + Math.floor(rng() * 8) : 88 + Math.floor(rng() * 10);
-  return { kicks, snares, hats, bass, lead, bpm };
+function rim(t) {
+  tone(t, 1700, 0.018, 0.10);
 }
 
-export function playBeat(seed, mellow = false) {
+function bell(t) {
+  tone(t, 800, 0.05, 0.09);
+  tone(t, 540, 0.05, 0.07);
+}
+
+// ---- The beat machine -------------------------------------------------------
+// Five styles, all seeded, so every scene and every night sounds
+// different: boom-bap with swing, electro (Planet Rock energy), funk
+// with ghost notes, a latin groove with clave + cowbell, and a mellow
+// gallery mode.
+
+const STYLES = {
+  boombap: { bpm: [86, 98], swing: 0.16, bassWave: 'square', leadWave: 'square' },
+  electro: { bpm: [112, 126], swing: 0, bassWave: 'square', leadWave: 'square' },
+  funk:    { bpm: [94, 104], swing: 0.12, bassWave: 'square', leadWave: 'square' },
+  latin:   { bpm: [100, 112], swing: 0, bassWave: 'triangle', leadWave: 'triangle' },
+  mellow:  { bpm: [66, 76], swing: 0.1, bassWave: 'triangle', leadWave: 'sine' },
+};
+
+function makePattern(seed, style) {
+  const rng = makeRng(seed);
+  const st = STYLES[style] || STYLES.boombap;
+  const root = pick(rng, [49, 55, 58.27, 61.74, 65.41]);
+  const scale = style === 'latin' || style === 'mellow' ? MINOR : MINOR_PENT;
+  const kicks = new Array(32).fill(0);
+  const snares = new Array(32).fill(0);   // 1 = full, 2 = ghost
+  const hats = new Array(32).fill(0);     // 1 = closed, 2 = open
+  const rims = new Array(32).fill(0);
+  const bells = new Array(32).fill(0);
+  const bass = new Array(32).fill(null);
+  const lead = new Array(32).fill(null);
+
+  for (let bar = 0; bar < 2; bar++) {
+    const o = bar * 16;
+    if (style === 'electro') {
+      kicks[o] = 1; kicks[o + 6] = 1; kicks[o + (bar ? 12 : 10)] = 1;
+      snares[o + 4] = 1; snares[o + 12] = 1;
+      for (let i = 0; i < 16; i++) hats[o + i] = i % 2 ? 1 : 0;
+      hats[o + 14] = 2;
+      for (let i = 0; i < 16; i += 2) {
+        bass[o + i] = noteFreq(root, i % 8 === 6 ? 7 : (i % 4 === 2 ? 12 : 0));
+      }
+    } else if (style === 'funk') {
+      kicks[o] = 1; kicks[o + 7] = 1; kicks[o + 10] = 1;
+      if (rng() < 0.5) kicks[o + 13] = 1;
+      snares[o + 4] = 1; snares[o + 12] = 1;
+      for (let i = 1; i < 16; i += 2) if (rng() < 0.3) snares[o + i] = 2; // ghosts
+      for (let i = 0; i < 16; i += 2) hats[o + i] = 1;
+      hats[o + 10] = 2;
+      const funkNotes = [0, 0, 12, 7, 0, 10, 12, 0];
+      for (let i = 0; i < 16; i++) {
+        if ([0, 3, 6, 8, 11, 14].includes(i) && rng() < 0.85) {
+          bass[o + i] = noteFreq(root, funkNotes[Math.floor(rng() * funkNotes.length)]);
+        }
+      }
+    } else if (style === 'latin') {
+      kicks[o] = 1; kicks[o + 8] = 1;
+      // son clave on the rim
+      for (const cs of bar % 2 === 0 ? [0, 3, 6] : [2, 4]) rims[o + cs * 2] = 1;
+      for (let i = 0; i < 16; i += 4) bells[o + i] = 1;
+      bells[o + 10] = 1;
+      snares[o + 12] = 1;
+      for (let i = 0; i < 16; i += 2) hats[o + i] = 1;
+      // tumbao-ish bass
+      bass[o + 3] = noteFreq(root, 7);
+      bass[o + 6] = noteFreq(root, 0);
+      bass[o + 10] = noteFreq(root, 7);
+      bass[o + 14] = noteFreq(root, 12);
+    } else if (style === 'mellow') {
+      kicks[o] = 1;
+      snares[o + 8] = 1;
+      for (let i = 0; i < 16; i += 4) hats[o + i] = 1;
+      if (rng() < 0.8) bass[o] = noteFreq(root, 0);
+      if (rng() < 0.5) bass[o + 8] = noteFreq(root, pick(rng, [3, 5, 7]));
+    } else { // boombap
+      kicks[o] = 1;
+      kicks[o + (rng() < 0.5 ? 7 : 10)] = 1;
+      if (rng() < 0.5) kicks[o + 3] = 1;
+      snares[o + 4] = 1; snares[o + 12] = 1;
+      if (rng() < 0.3) snares[o + 15] = 2;
+      for (let i = 0; i < 16; i += 2) hats[o + i] = rng() < 0.12 ? 2 : 1;
+      for (let i = 0; i < 16; i += 4) {
+        if (rng() < 0.8) bass[o + i] = noteFreq(root, pick(rng, MINOR_PENT));
+        if (rng() < 0.3) bass[o + i + 2] = noteFreq(root, pick(rng, MINOR_PENT));
+      }
+    }
+  }
+
+  // lead melody: an arp for electro, riffs elsewhere
+  if (style === 'electro') {
+    const arp = [0, 3, 7, 12];
+    for (let i = 0; i < 32; i += 2) {
+      if (rng() < 0.5) lead[i] = noteFreq(root * 4, arp[(i / 2) % 4]);
+    }
+  } else {
+    const dens = style === 'mellow' ? 0.08 : style === 'funk' ? 0.16 : 0.12;
+    for (let i = 0; i < 32; i++) {
+      if (rng() < dens) lead[i] = noteFreq(root * 4, pick(rng, scale));
+    }
+  }
+
+  const bpm = st.bpm[0] + Math.floor(rng() * (st.bpm[1] - st.bpm[0]));
+  return {
+    kicks, snares, hats, rims, bells, bass, lead, bpm,
+    swing: st.swing, bassWave: st.bassWave, leadWave: st.leadWave,
+    leadDur: style === 'mellow' ? 1.6 : 0.9,
+    bassVol: style === 'mellow' ? 0.10 : 0.14,
+  };
+}
+
+export function playBeat(seed, style = 'boombap') {
   if (!ac) return;
+  if (style === true) style = 'mellow'; // old boolean callers
   stopBeat();
   stopAmbience();
-  const pat = makePattern(seed, mellow);
+  const pat = makePattern(seed, style);
   const stepDur = 60 / pat.bpm / 4;
   let step = 0;
   let nextTime = ac.currentTime + 0.05;
@@ -118,11 +204,15 @@ export function playBeat(seed, mellow = false) {
     if (!ac) return;
     while (nextTime < ac.currentTime + 0.15) {
       const s = step % 32;
-      if (pat.kicks[s]) kick(nextTime);
-      if (pat.snares[s]) snare(nextTime);
-      if (pat.hats[s]) hat(nextTime, pat.hats[s] === 2);
-      if (pat.bass[s]) tone(nextTime, pat.bass[s], stepDur * 1.8, mellow ? 0.10 : 0.14, mellow ? 'triangle' : 'square');
-      if (pat.lead[s]) tone(nextTime, pat.lead[s], stepDur * (mellow ? 1.6 : 0.9), 0.05, mellow ? 'sine' : 'square');
+      const t = nextTime + (s % 2 === 1 ? stepDur * pat.swing : 0);
+      if (pat.kicks[s]) kick(t);
+      if (pat.snares[s] === 1) snare(t);
+      if (pat.snares[s] === 2) { const g = t; tone(g, 1800, 0.05, 0.06); } // ghost tap
+      if (pat.hats[s]) hat(t, pat.hats[s] === 2);
+      if (pat.rims[s]) rim(t);
+      if (pat.bells[s]) bell(t);
+      if (pat.bass[s]) tone(t, pat.bass[s], stepDur * 1.8, pat.bassVol, pat.bassWave);
+      if (pat.lead[s]) tone(t, pat.lead[s], stepDur * pat.leadDur, 0.05, pat.leadWave);
       nextTime += stepDur;
       step++;
     }

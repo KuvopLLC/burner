@@ -54,6 +54,16 @@ export function centerText(ctx, str, y, color = '#fff', scale = 1) {
   text(ctx, str, (W - textWidth(str, scale)) / 2, y, color, scale);
 }
 
+// arcade text: a hard black drop shadow so type pops off any scene
+export function stext(ctx, str, x, y, color = '#fff', scale = 1) {
+  text(ctx, str, x + scale, y + scale, '#08080c', scale);
+  text(ctx, str, x, y, color, scale);
+}
+
+export function scenter(ctx, str, y, color = '#fff', scale = 1) {
+  stext(ctx, str, (W - textWidth(str, scale)) / 2, y, color, scale);
+}
+
 export function rect(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;
   ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));

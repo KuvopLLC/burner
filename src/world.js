@@ -9,6 +9,8 @@ export function newRun(tag, seed) {
     tag, seed,
     rng: makeRng(seed ^ 0xBEEF),
     strikes: 0,
+    bursts: 0,        // for the results screen
+    hides: 0,
     pieces: [],       // book entries
     partner: null,    // current mission partner
     piece: null,      // current mission piece
