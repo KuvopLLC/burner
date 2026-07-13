@@ -91,7 +91,8 @@ export const paintScene = {
       coveredCount: 0,
       totalRegion: Object.values(piece.counts).reduce((a, b) => a + b, 0),
       regCov: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-      regDone: {},
+      // a region with no pixels is born finished (belt + suspenders)
+      regDone: Object.fromEntries([1, 2, 3, 4, 5].map(r => [r, piece.counts[r] === 0])),
       regDoneFrac: ptag === 'LADY VEX' ? 0.93 : 0.97,
       paintCv: makeCanvas(piece.w, piece.h),
       selected: 0,

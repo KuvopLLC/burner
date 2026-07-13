@@ -106,6 +106,23 @@ const MOTIFS = {
     'XXXXXXXXXX..',
     '.XX..XX.....',
   ],
+  spiral: [
+    '.XXXX..',
+    'XX..XX.',
+    'X..X.X.',
+    'X.XX.X.',
+    'X....X.',
+    '.XXXX..',
+  ],
+  copyright: [
+    '.XXX.',
+    'X...X',
+    'X.XX.',
+    'X.X..',
+    'X.XX.',
+    'X...X',
+    '.XXX.',
+  ],
   pigeon: [
     '....XX......',
     '...XXXX.....',
@@ -148,7 +165,7 @@ export function makePiece(tag, seed, partnerTag = null, forceWord = null) {
   const hasCrown = rng() < 0.45;
   const hasArrows = !animal && !forceWord && rng() < 0.4;
   const nStars = Math.floor(rng() * 3) + (hasCrown ? 0 : 1);
-  const hasCharm = !animal && rng() < 0.3 ? (rng() < 0.5 ? 'heart' : 'bolt') : null;
+  const hasCharm = !animal && rng() < 0.4 ? pick(rng, ['heart', 'bolt', 'spiral', 'copyright']) : null;
 
   // 1. Render the word as big bouncing letters (5x7 font, scaled fat)
   const [lcv, lc] = makeCanvas(w, h);
@@ -216,16 +233,162 @@ export function makePiece(tag, seed, partnerTag = null, forceWord = null) {
     stampMask(lc, rows, clampX(sx, mw), clampY(sy, mh), sc);
   }
 
+  // 1c. Roll tonight's style — the blackbook is deep
+  const style = {
+    form: forceWord ? 'block' : pick(rng, ['block', 'block', 'bubble', 'bubble', 'lean']),
+    lean: !forceWord && rng() < 0.3 ? (rng() < 0.5 ? 1 : -1) : 0,
+    threeD: pick(rng, ['extrude', 'extrude', 'drop']), // every piece keeps a real shadow region
+    fill: pick(rng, ['fade', 'fade', 'splitcap', 'crackle']),
+    outline: rng() < 0.4 ? 'keyline' : 'single',
+    bg: pick(rng, ['cloud', 'cloud', 'splash', 'burst']),
+    bits: !forceWord && rng() < 0.5,
+    fusedArrows: !forceWord && !hasArrows && rng() < 0.45,
+    drips: rng() < 0.5,
+  };
+
   // 2. Letter mask
   const img = lc.getImageData(0, 0, w, h).data;
   let letters = new Uint8Array(w * h);
   for (let i = 0; i < w * h; i++) if (img[i * 4 + 3] > 0) letters[i] = 1;
-  letters = dilate(letters, w, h, 1); // fatten
+  // lean: shear the whole word like it's mid-stride
+  if (style.lean) {
+    const sheared = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+      const off = Math.round((h / 2 - y) * 0.22 * style.lean);
+      for (let x = 0; x < w; x++) {
+        if (!letters[y * w + x]) continue;
+        const nx = x + off;
+        if (nx >= 0 && nx < w) sheared[y * w + nx] = 1;
+      }
+    }
+    letters = sheared;
+  }
+  letters = dilate(letters, w, h, style.form === 'bubble' ? 2 : 1);
+
+  // 2b. bits: stair-step notches and slice cuts through the bars
+  if (style.bits) {
+    for (let n = 0; n < 3 + Math.floor(rng() * 3); n++) {
+      // find a letter pixel to chip at
+      let idx = -1;
+      for (let tries = 0; tries < 60; tries++) {
+        const cand = Math.floor(rng() * w * h);
+        if (letters[cand]) { idx = cand; break; }
+      }
+      if (idx < 0) break;
+      const bx = idx % w, by = Math.floor(idx / w);
+      if (rng() < 0.5) {
+        // stair bit: two stacked notches
+        for (let sx = 0; sx < 3; sx++) for (let sy = 0; sy < 3; sy++) {
+          const i2 = (by + sy) * w + bx + sx;
+          if (bx + sx < w && by + sy < h) letters[i2] = 0;
+        }
+        for (let sx = 0; sx < 3; sx++) for (let sy = 0; sy < 3; sy++) {
+          const i2 = (by + 3 + sy) * w + bx + 3 + sx;
+          if (bx + 3 + sx < w && by + 3 + sy < h) letters[i2] = 0;
+        }
+      } else {
+        // slice: a thin diagonal cut
+        for (let k = -5; k <= 5; k++) {
+          const cx2 = bx + k, cy2 = by - k;
+          if (cx2 >= 0 && cx2 < w && cy2 >= 0 && cy2 < h) {
+            letters[cy2 * w + cx2] = 0;
+            if (cx2 + 1 < w) letters[cy2 * w + cx2 + 1] = 0;
+          }
+        }
+      }
+    }
+  }
+
+  // 2c. fused arrow terminals: the letterform becomes the lightning
+  if (style.fusedArrows) {
+    for (const side of [-1, 1]) {
+      // find the extreme letter pixel around mid-height
+      const rows = [Math.floor(h / 2 - 8), Math.floor(h / 2), Math.floor(h / 2 + 8)];
+      let ex = side === 1 ? -1 : w;
+      let ey = h / 2;
+      for (const ry of rows) {
+        for (let x = 0; x < w; x++) {
+          const xx = side === 1 ? w - 1 - x : x;
+          if (letters[ry * w + xx]) {
+            if ((side === 1 && xx > ex) || (side === -1 && xx < ex)) { ex = xx; ey = ry; }
+            break;
+          }
+        }
+      }
+      if (ex < 0 || ex >= w) continue;
+      // stamp a solid arrowhead pointing outward
+      for (let ax = 0; ax < 9; ax++) {
+        const spread = 9 - ax;
+        for (let ay = -spread; ay <= spread; ay++) {
+          const px2 = ex + side * (ax + 1), py2 = Math.round(ey) + ay;
+          if (px2 >= 2 && px2 < w - 2 && py2 >= 2 && py2 < h - 2) letters[py2 * w + px2] = 1;
+        }
+      }
+    }
+  }
+
+  // 2d. drips: paint obeys gravity
+  if (style.drips) {
+    for (let n = 0; n < 2 + Math.floor(rng() * 3); n++) {
+      const dx2 = Math.floor(w * 0.25 + rng() * w * 0.5);
+      // find bottom edge of letters at this column
+      let bottom = -1;
+      for (let y = h - 1; y >= 0; y--) { if (letters[y * w + dx2]) { bottom = y; break; } }
+      if (bottom < 0 || bottom > h - 6) continue;
+      const len = 5 + Math.floor(rng() * 9);
+      for (let k = 0; k < len && bottom + k < h - 2; k++) {
+        letters[(bottom + k) * w + dx2] = 1;
+        letters[(bottom + k) * w + dx2 + 1] = 1;
+      }
+      // the drop bead
+      if (bottom + len < h - 3) {
+        for (let bx2 = -1; bx2 <= 2; bx2++) letters[(bottom + len) * w + dx2 + bx2] = 1;
+      }
+    }
+  }
 
   // 3. Derived masks
   const outlined = dilate(letters, w, h, 2);
-  const shadow = shift(outlined, w, h, 3, 3);
-  const cloud = dilate(letters, w, h, 8);
+  let shadow;
+  if (style.threeD === 'extrude') {
+    // solid 3D depth, Style 101: the union of diagonal shifts
+    shadow = new Uint8Array(w * h);
+    for (let d = 1; d <= 5; d++) {
+      const sh = shift(outlined, w, h, d, d);
+      for (let i = 0; i < w * h; i++) if (sh[i]) shadow[i] = 1;
+    }
+  } else {
+    shadow = shift(outlined, w, h, 3, 3);
+  }
+  // background: cloud, organic splash, or a spiky burst
+  let cloud;
+  if (style.bg === 'splash') {
+    cloud = dilate(letters, w, h, 6);
+    const more = dilate(cloud, w, h, 5);
+    for (let i = 0; i < w * h; i++) {
+      const x = i % w, y = Math.floor(i / w);
+      const nz = ((Math.imul(x >> 3, 2654435761) ^ Math.imul(y >> 3, 40503) ^ seed) >>> 8) % 5;
+      if (more[i] && nz < 2) cloud[i] = 1;
+    }
+  } else if (style.bg === 'burst') {
+    cloud = dilate(letters, w, h, 4);
+    // rays out from the center
+    const cx2 = w / 2, cy2 = h / 2;
+    for (let a = 0; a < 14; a++) {
+      const ang = (a / 14) * 6.283 + rng() * 0.3;
+      const rl = 26 + rng() * 22;
+      for (let t = 8; t < rl; t++) {
+        const px2 = Math.round(cx2 + Math.cos(ang) * t * 1.9);
+        const py2 = Math.round(cy2 + Math.sin(ang) * t * 0.75);
+        for (let ww2 = -1; ww2 <= 1; ww2++) {
+          const i2 = (py2 + ww2) * w + px2;
+          if (px2 >= 2 && px2 < w - 2 && py2 + ww2 >= 2 && py2 + ww2 < h - 2) cloud[i2] = 1;
+        }
+      }
+    }
+  } else {
+    cloud = dilate(letters, w, h, 8);
+  }
 
   // 4. Region map, priority: fill > outline > shadow > cloud
   const regions = new Uint8Array(w * h);
@@ -273,7 +436,24 @@ export function makePiece(tag, seed, partnerTag = null, forceWord = null) {
     if (y > b.maxY) b.maxY = y;
   }
 
-  return { tag, word, seed, w, h, regions, palette, counts, regBounds };
+  // keyline ring: the outermost skin of the outline region, for the
+  // DOVE-style second outline glow
+  const ring = new Uint8Array(w * h);
+  if (style.outline === 'keyline') {
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x;
+        if (regions[i] !== R_OUTLINE) continue;
+        const n1 = regions[i - 1], n2 = regions[i + 1], n3 = regions[i - w], n4 = regions[i + w];
+        if (n1 !== R_OUTLINE && n1 !== R_FILL_A && n1 !== R_FILL_B) ring[i] = 1;
+        else if (n2 !== R_OUTLINE && n2 !== R_FILL_A && n2 !== R_FILL_B) ring[i] = 1;
+        else if (n3 !== R_OUTLINE && n3 !== R_FILL_A && n3 !== R_FILL_B) ring[i] = 1;
+        else if (n4 !== R_OUTLINE && n4 !== R_FILL_A && n4 !== R_FILL_B) ring[i] = 1;
+      }
+    }
+  }
+
+  return { tag, word, seed, w, h, regions, palette, counts, regBounds, style, ring };
 }
 
 // ---- Fades ---------------------------------------------------------------
@@ -294,13 +474,44 @@ function shadeHex(hex, f) {
   return v;
 }
 
-// dithered three-band fade within a region
+// style-aware shading: fades, split caps, crackle, keylines — all
+// derived from the five can colors so the ghost, the sprayed paint,
+// and the book polaroid agree.
 export function pieceShade(piece, rid, x, y) {
   const hex = piece.palette[rid].hex;
-  if (rid === 3 || rid === 4) return hex; // outline + shadow stay flat
+  const st = piece.style || {};
+  const i = y * piece.w + x;
+
+  if (rid === 3) {
+    // keyline: the outer skin of the outline glows light
+    if (st.outline === 'keyline' && piece.ring && piece.ring[i]) return shadeHex(hex, 0.72);
+    return hex;
+  }
+  if (rid === 4) {
+    // extruded 3D reads deeper toward the bottom
+    if (st.threeD === 'extrude') {
+      const b4 = piece.regBounds[4];
+      if (b4 && b4.maxY > b4.minY && (y - b4.minY) / (b4.maxY - b4.minY) > 0.5) return shadeHex(hex, -0.3);
+    }
+    return hex;
+  }
+
   const b = piece.regBounds[rid];
   if (!b || b.maxY <= b.minY) return hex;
-  let v = (y - b.minY) / (b.maxY - b.minY);
+  const t = (y - b.minY) / (b.maxY - b.minY);
+
+  if ((rid === 1 || rid === 2) && st.fill === 'crackle') {
+    // DOVE cracks: connected dark veins wandering through the fill
+    const ph = (piece.seed % 7) * 0.9;
+    const v1 = Math.sin(x * 0.42 + y * 0.83 + ph);
+    const v2 = Math.sin(x * 0.19 - y * 0.57 + ph * 1.7);
+    if (v1 > 0.94 || v2 > 0.96) return shadeHex(hex, -0.5);
+  }
+  if ((rid === 1 || rid === 2) && st.fill === 'splitcap' && t < 0.3) {
+    return shadeHex(hex, 0.45); // City-Soup cap band
+  }
+
+  let v = t;
   const dith = ((x & 1) + ((y & 1) << 1)) / 4;
   v += (dith - 0.375) * 0.34;
   const f = rid === 5 ? 0.10 : 0.24;

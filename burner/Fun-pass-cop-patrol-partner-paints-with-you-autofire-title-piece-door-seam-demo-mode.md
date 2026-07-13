@@ -2,11 +2,13 @@
 title: Fun pass - cop patrol, partner paints with you, autofire, title piece, door seam, demo mode
 type: feature
 created: "2026-07-13T18:57:58Z"
-modified: "2026-07-13T18:57:58Z"
+modified: "2026-07-13T19:03:38Z"
 author: Matthew Reider
-status: started
+status: delivered
 estimate: "8"
 started: "2026-07-13T18:57:58Z"
+finished: "2026-07-13T19:03:38Z"
+delivered: "2026-07-13T19:03:38Z"
 ---
 
 ## Problem statement
