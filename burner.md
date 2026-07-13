@@ -1,0 +1,41 @@
+# burner
+
+[home](index.md) • [tag list](.am/tags.md) • [velocity](.am/velocity.md) • [timeline](.am/timeline.md) • [users](.am/users.md)
+
+### Unstarted
+| User | Title | Points | Tags |
+|---|---|:---:|---|
+|  | [Animation upgrade more walk frames and spray-arm pose](burner/Animation-upgrade-more-walk-frames-and-spray-arm-pose.md) |  |  |
+|  | [Bring back the fame economy points per day compounding](burner/Bring-back-the-fame-economy-points-per-day-compounding.md) |  |  |
+|  | [Custom fat graffiti alphabet for pieces](burner/Custom-fat-graffiti-alphabet-for-pieces.md) |  |  |
+|  | [Flashlight security sweep hazard](burner/Flashlight-security-sweep-hazard.md) |  |  |
+|  | [More boroughs](burner/More-boroughs.md) |  |  |
+|  | [More critters and props snake boombox spray can characters](burner/More-critters-and-props-snake-boombox-spray-can-characters.md) |  |  |
+|  | [Online leaderboard](burner/Online-leaderboard.md) |  |  |
+|  | [Racking runs steal paint kicks fits between nights](burner/Racking-runs-steal-paint-kicks-fits-between-nights.md) |  |  |
+|  | [Rain and weather nights](burner/Rain-and-weather-nights.md) |  |  |
+|  | [Rival crews cap your pieces mid-run](burner/Rival-crews-cap-your-pieces-mid-run.md) |  |  |
+|  | [Subway station as a fourth spot kind](burner/Subway-station-as-a-fourth-spot-kind.md) |  |  |
+|  | [Tune hazard pacing from real playtests](burner/Tune-hazard-pacing-from-real-playtests.md) |  |  |
+|  | [Whole-car pieces multi-night burners](burner/Whole-car-pieces-multi-night-burners.md) |  |  |
+| Total Points | | 0 | |
+
+### Started
+| User | Title | Points | Tags |
+|---|---|:---:|---|
+
+### Finished
+| User | Title | Points | Tags |
+|---|---|:---:|---|
+
+### Delivered
+| User | Title | Points | Tags |
+|---|---|:---:|---|
+
+### Accepted
+| User | Title | Points | Tags |
+|---|---|:---:|---|
+
+### Rejected
+| User | Title | Points | Tags |
+|---|---|:---:|---|
