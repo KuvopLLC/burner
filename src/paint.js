@@ -67,39 +67,42 @@ export const paintScene = {
     const paintCap = Math.round(totalRegion * (1.8 + st.rack * 0.25 + gear.paint * 0.3));
 
     const diff = difficulty(run);
-    let radius = 2;
-    if (st.cans >= 5) radius++;
-    if (ptag === 'SABLE' || ptag === 'CRISPO 149') radius++;
-    if (ptag === 'TEKO 5') radius += 2;
-    radius += Math.floor(gear.paint / 2);
+    // one key-press = one spray burst; SKETCH plans bigger passes
+    let burstR = 6 + Math.floor(st.sketch / 2);
+    if (st.cans >= 5) burstR++;
+    if (ptag === 'SABLE' || ptag === 'CRISPO 149') burstR++;
+    if (ptag === 'TEKO 5') burstR += 2;
+    burstR += Math.floor(gear.paint / 2);
 
-    let heatRate = 3.5 + spot.heat * 1.1 + diff * 0.25 - st.creep * 0.7;
-    if (ptag === 'MERC ONE' && spot.kind === 'train') heatRate *= 0.6;
-    heatRate = Math.max(1.2, heatRate);
+    let burstHeat = 0.9 + spot.heat * 0.15 + diff * 0.06 - st.creep * 0.1;
+    if (ptag === 'MERC ONE' && spot.kind === 'train') burstHeat *= 0.6;
+    burstHeat = Math.max(0.35, burstHeat);
 
     this.s = {
       rng, piece, spot, guide, masks, bag,
       covered: new Uint8Array(piece.w * piece.h),
       coveredCount: 0,
       totalRegion,
-      painted: new Uint8Array(piece.w * piece.h), // color id currently on each pixel
+      regCov: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      regDone: {},
       paintCv: makeCanvas(piece.w, piece.h),
       selected: 0,
       paint: paintCap, paintCap,
       cost: Math.max(0.5, 1 - st.cans * 0.06 - gear.paint * 0.08), // paint per pixel
-      last: null, // previous spray point, for stroke interpolation
-      radius,
-      tol: 1 + Math.floor(st.sketch / 2),
+      burstR, burstHeat,
       timeLeft: Math.max(40, spot.time - diff * 4),
-      heat: 0, heatRate,
+      heat: 0,
       hiding: false,
       cop: null,          // {x, dir, stay, exposeT}
       warned: false,
       ped: null,          // {x, dir, line, t, sprite}
       pedTimer: 5 + rng() * 6,
-      msg: '[1-7] CANS · [SPACE] HIDE · [ENTER] DONE',
+      msg: 'POINT + [X] SPRAY · [1-7] CANS · [SPACE] HIDE',
       msgT: 5,
-      spraying: false,
+      sprayT: 0,          // burst hiss timer
+      readyTold: false,
+      fx: [],             // burst ring effects
+      regFlash: null,     // {rid, t} region-complete flash
       busted: false, bustedT: 0,
       done: false,
       lowTick: 0,
@@ -134,16 +137,15 @@ export const paintScene = {
     }
     if (s.timeLeft <= 0) { finishPiece(G, this); return; }
 
-    // spraying
-    const m = G.mouse;
-    const overPiece = m.x >= PX && m.x < PX + s.piece.w && m.y >= PY && m.y < PY + s.piece.h;
-    const wantSpray = m.down && overPiece && !s.hiding && s.paint > 0;
-    if (wantSpray) spray(s, m.x - PX, m.y - PY);
-    else s.last = null;
-    if (wantSpray !== s.spraying) { s.spraying = wantSpray; sfxSpray(wantSpray); }
+    // burst hiss + effects
+    if (s.sprayT > 0) { s.sprayT -= dt; sfxSpray(true); }
+    else sfxSpray(false);
+    for (const f of s.fx) f.t += dt;
+    s.fx = s.fx.filter(f => f.t < 0.25);
+    if (s.regFlash) { s.regFlash.t -= dt; if (s.regFlash.t <= 0) s.regFlash = null; }
 
-    // heat
-    s.heat += (s.spraying ? s.heatRate : s.heatRate * 0.12) * dt;
+    // heat cools while you pace yourself; bursts add it back
+    s.heat = Math.max(0, s.heat - 1.6 * dt);
 
     // KWIK early warning
     if (!s.warned && s.heat >= 82 && G.run.partner.tag === 'KWIK 12' && !s.cop) {
@@ -208,7 +210,8 @@ export const paintScene = {
     const s = this.s;
     if (s.busted || s.done) return;
     if (e.type === 'down') {
-      if (e.key === ' ') { s.hiding = true; sfxSpray(false); s.spraying = false; }
+      if (e.key === ' ') { s.hiding = true; sfxSpray(false); s.sprayT = 0; }
+      if (e.key === 'x' || e.key === 'X') burst(G, s, G.mouse.x, G.mouse.y);
       const n = parseInt(e.key, 10);
       if (n >= 1 && n <= s.bag.length) s.selected = n - 1;
       if (e.key === 'Enter') finishPiece(G, this);
@@ -218,10 +221,12 @@ export const paintScene = {
   },
 
   click(G, x, y) {
-    // can selection by clicking the bag
     const s = this.s;
+    if (s.busted || s.done) return;
+    // can selection by clicking the bag; anywhere on the piece = spray
     const i = Math.floor((x - 26) / 40);
-    if (y >= 168 && y <= 196 && i >= 0 && i < s.bag.length) s.selected = i;
+    if (y >= 168 && y <= 196 && i >= 0 && i < s.bag.length) { s.selected = i; return; }
+    burst(G, s, x, y);
   },
 
   draw(G, ctx) {
@@ -246,6 +251,40 @@ export const paintScene = {
     if (rid) {
       ctx.globalAlpha = 0.10 + 0.08 * Math.sin(s.pulse);
       ctx.drawImage(s.masks[rid], PX, PY);
+      ctx.globalAlpha = 1;
+    }
+
+    // a finished region flashes white for a beat
+    if (s.regFlash) {
+      ctx.globalAlpha = Math.min(0.5, s.regFlash.t);
+      ctx.drawImage(s.masks[s.regFlash.rid], PX, PY);
+      ctx.globalAlpha = 1;
+    }
+
+    // burst rings
+    for (const f of s.fx) {
+      const rr = s.burstR * (0.4 + f.t * 3);
+      ctx.globalAlpha = Math.max(0, 0.6 - f.t * 2.5);
+      ctx.fillStyle = '#fff';
+      for (let a = 0; a < 16; a++) {
+        const fx = Math.round(f.x + Math.cos(a * 0.3927) * rr);
+        const fy = Math.round(f.y + Math.sin(a * 0.3927) * rr);
+        if (fx >= 28 && fx < 292 && fy >= 26 && fy < 132) ctx.fillRect(fx, fy, 1, 1);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // aiming ring: where the next burst lands
+    const m = G.mouse;
+    if (!s.hiding && !s.busted && !s.done &&
+        m.x >= PX - 6 && m.x < PX + s.piece.w + 6 && m.y >= PY - 6 && m.y < PY + s.piece.h + 6) {
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = '#fff';
+      for (let a = 0; a < 24; a++) {
+        const ax = Math.round(m.x + Math.cos(a * 0.2618) * s.burstR);
+        const ay = Math.round(m.y + Math.sin(a * 0.2618) * s.burstR);
+        if (ax >= 28 && ax < 292 && ay >= 26 && ay < 132) ctx.fillRect(ax, ay, 1, 1);
+      }
       ctx.globalAlpha = 1;
     }
 
@@ -318,59 +357,63 @@ export const paintScene = {
 
 function say(s, msg) { s.msg = msg; s.msgT = 3.5; }
 
-// Stamp a filled disc along the mouse stroke, like a real can laying a line.
-function spray(s, mx, my) {
+const REGION_NAMES = { 1: 'FILL A', 2: 'FILL B', 3: 'LINES', 4: 'SHADOW', 5: 'CLOUD' };
+
+// One key press = one burst at the cursor. Paint ONLY lands on pixels
+// whose region wants the selected color — it is impossible to paint
+// outside the designated areas.
+function burst(G, s, mx, my) {
+  if (s.hiding || s.done || s.busted) return;
+  const px = Math.round(mx - PX), py = Math.round(my - PY);
+  const w = s.piece.w, h = s.piece.h, r = s.burstR;
+  if (px < -r || px >= w + r || py < -r || py >= h + r) return; // not at the wall
+  if (s.paint <= 0) { say(s, 'OUT OF PAINT.'); return; }
+
   const color = s.bag[s.selected];
   const ctx = s.paintCv[1];
-  const w = s.piece.w, h = s.piece.h, r = s.radius;
   ctx.fillStyle = color.hex;
-  const from = s.last || [mx, my];
-  const dist = Math.hypot(mx - from[0], my - from[1]);
-  const steps = Math.max(1, Math.min(40, Math.ceil(dist / 2)));
-  for (let n = 0; n < steps; n++) {
-    const t = n / steps;
-    const cx = Math.round(from[0] + (mx - from[0]) * t);
-    const cy = Math.round(from[1] + (my - from[1]) * t);
-    for (let dy = -r; dy <= r; dy++) {
-      for (let dx = -r; dx <= r; dx++) {
-        if (dx * dx + dy * dy > r * r) continue;
-        const x = cx + dx, y = cy + dy;
-        if (x < 0 || x >= w || y < 0 || y >= h) continue;
-        const i = y * w + x;
-        if (s.painted[i] === color.id) continue; // already this color
-        if (s.paint <= 0) { s.last = [mx, my]; return; }
-        s.paint -= s.cost;
-        s.painted[i] = color.id;
-        ctx.fillRect(x, y, 1, 1);
-        if (!s.covered[i] && wantsColor(s, x, y, color.id)) {
-          s.covered[i] = 1;
-          s.coveredCount++;
-        } else if (s.covered[i]) {
-          const reg = s.piece.regions[i];
-          if (reg && s.piece.palette[reg].id !== color.id) {
-            s.covered[i] = 0; // sprayed over your own good work
-            s.coveredCount--;
-          }
-        }
+  let hit = 0, doneRid = 0;
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dy * dy > r * r) continue;
+      const x = px + dx, y = py + dy;
+      if (x < 0 || x >= w || y < 0 || y >= h) continue;
+      const i = y * w + x;
+      const rid = s.piece.regions[i];
+      if (!rid || s.piece.palette[rid].id !== color.id) continue; // wrong area: nothing sticks
+      if (s.covered[i]) continue;
+      if (s.paint <= 0) break;
+      s.paint -= s.cost;
+      ctx.fillRect(x, y, 1, 1);
+      s.covered[i] = 1;
+      s.coveredCount++;
+      s.regCov[rid]++;
+      if (!s.regDone[rid] && s.regCov[rid] >= s.piece.counts[rid] * 0.97) {
+        s.regDone[rid] = true;
+        doneRid = rid;
       }
+      hit++;
     }
   }
-  s.last = [mx, my];
-}
 
-// SKETCH skill tolerance: a near-miss still counts if the right region
-// is within `tol` pixels.
-function wantsColor(s, x, y, colorId) {
-  const w = s.piece.w, h = s.piece.h, t = s.tol;
-  for (let dy = -t; dy <= t; dy += t || 1) {
-    for (let dx = -t; dx <= t; dx += t || 1) {
-      const nx = x + dx, ny = y + dy;
-      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-      const r = s.piece.regions[ny * w + nx];
-      if (r && s.piece.palette[r].id === colorId) return true;
+  if (hit > 0) {
+    s.sprayT = 0.14;
+    s.heat = Math.min(110, s.heat + s.burstHeat);
+    s.fx.push({ x: mx, y: my, t: 0 });
+    if (doneRid) {
+      sfxPop();
+      s.regFlash = { rid: doneRid, t: 0.5 };
+      say(s, `${REGION_NAMES[doneRid]} DONE!`);
     }
+    if (!s.readyTold && s.coveredCount / s.totalRegion >= 0.6) {
+      s.readyTold = true;
+      say(s, 'IT READS! [ENTER] TO BOUNCE, OR KEEP BURNING');
+    }
+  } else {
+    s.heat = Math.min(110, s.heat + 0.4); // you still rattled the can
+    if (s.msgT <= 0) say(s, 'NOT HERE — CHECK THE SKETCH FOR THIS CAN');
+    sfxTick();
   }
-  return false;
 }
 
 function bust(G, scene) {

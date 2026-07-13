@@ -1,7 +1,7 @@
 // data.js — static game data: skills, partners, spots, paint colors, gear.
 
 export const SKILLS = [
-  { key: 'sketch', name: 'SKETCH', desc: 'LINE QUALITY. NEAR-MISSES STILL COUNT.' },
+  { key: 'sketch', name: 'SKETCH', desc: 'A PLANNED PIECE. EACH BURST COVERS MORE.' },
   { key: 'cans',   name: 'CANS',   desc: 'CAN CONTROL. FASTER, THICKER FILLS.' },
   { key: 'rack',   name: 'RACK',   desc: 'STEALING GEAR. WIDER POCKET WINDOW.' },
   { key: 'dash',   name: 'DASH',   desc: 'THE GETAWAY. COPS GIVE UP SOONER.' },

@@ -124,41 +124,34 @@ function paintTick(G, s) {
   if (hiding) { hiding = false; key(' ', 'up'); }
 
   if (!plan) {
-    // region-major run list: cloud, shadow, fills, outline last (it
-    // borders everything, so it repairs stray bleed)
-    const runs = [];
+    // burst targets: a grid of points per region, region-major so the
+    // can only switches five times
+    const step = Math.max(5, s.burstR);
+    const pts = [];
     for (const reg of [5, 4, 1, 2, 3]) {
-      for (let y = 2; y < piece.h; y += 4) {
-        for (let x = 0; x < w; x++) {
-          if (piece.regions[y * w + x] !== reg) continue;
-          let xe = x;
-          while (xe < w && piece.regions[y * w + xe] === reg) xe++;
-          runs.push({ reg, y, x0: x, x1: xe - 1 });
-          x = xe;
+      for (let y = Math.floor(step / 2); y < piece.h; y += step) {
+        for (let x = Math.floor(step / 2); x < w; x += step) {
+          if (piece.regions[y * w + x] === reg) pts.push({ reg, x, y });
         }
       }
     }
-    plan = { runs, i: 0 };
-    console.log(`PAINT PLAN: ${runs.length} strokes`);
+    plan = { pts, i: 0 };
+    console.log(`PAINT PLAN: ${pts.length} bursts (r=${s.burstR})`);
   }
-  if (plan.i >= plan.runs.length) {
+  if (plan.i >= plan.pts.length) {
     console.log(`PAINT SWEEP DONE @ ${now}, coverage=${Math.round(100 * s.coveredCount / s.totalRegion)}%`);
-    mouse('mouseup', 0, 0);
     key('Enter');
     return;
   }
-  for (let n = 0; n < 10 && plan.i < plan.runs.length; n++) {
-    const r = plan.runs[plan.i];
-    const want = piece.palette[r.reg].id;
+  for (let n = 0; n < 8 && plan.i < plan.pts.length; n++) {
+    const p = plan.pts[plan.i];
+    const want = piece.palette[p.reg].id;
     const canIdx = s.bag.findIndex(c => c.id === want);
     if (canIdx >= 0 && s.selected !== canIdx) { key(String(canIdx + 1)); break; }
-    mouse('mouseup', 0, 0);
-    mouse('mousemove', PXo + r.x0, PYo + r.y);
-    G.step(0.016);
-    mouse('mousedown', PXo + r.x0, PYo + r.y);
-    G.step(0.016);
-    mouse('mousemove', PXo + r.x1, PYo + r.y);
-    G.step(0.016);
+    mouse('mousemove', PXo + p.x, PYo + p.y);
+    G.step(0.01);
+    key('x');
+    G.step(0.03);
     plan.i++;
     if (s.cop) break; // heat maxed mid-batch
   }

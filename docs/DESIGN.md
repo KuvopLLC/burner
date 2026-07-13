@@ -25,8 +25,8 @@ D&D-style point-buy at the start of a run. Each starts at 1, you distribute
 
 | Skill  | What it is                    | Mechanical effect |
 |--------|-------------------------------|-------------------|
-| SKETCH | Line quality, blackbook hours | Wider tolerance when filling regions — near-misses still count |
-| CANS   | Can control — fills, fades    | Faster paint flow, bigger spray, less paint wasted |
+| SKETCH | Line quality, blackbook hours | Bigger spray bursts — a planned piece goes up faster |
+| CANS   | Can control — fills, fades    | Less paint wasted per pixel; high CANS adds burst size |
 | RACK   | Racking paint from the store  | More cans / more paint in the bag each mission |
 | DASH   | The getaway                   | Cops give up sooner, longer grace before a bust |
 | CREEP  | Moving unseen                 | Heat builds slower — dogs, security, and transit workers clock you late |
@@ -74,14 +74,18 @@ Gallery Nova in Mott Haven.
 
 - The sketch appears as a faint outline on the surface, divided into **regions**
   (fill top, fill bottom, outline, shadow, cloud) each wanting a specific color.
-- Your bag holds the cans the sketch needs plus decoys. Click a can, hold the
-  mouse to spray. Right color in the right region fills it; the region pulses
-  when its can is selected.
+- Your bag holds the cans the sketch needs plus decoys. Pick a can (1-7 or
+  click it), **point the mouse and hit X** (or click) — one press, one spray
+  burst. Paint ONLY lands inside the region that wants that color; it is
+  impossible to paint outside the designated areas. Aim badly or hold the
+  wrong can and nothing sticks — you just rattled the can and drew attention.
+  The region pulses while its can is selected, an aiming ring shows the burst
+  size, and a finished region flashes with a pop.
 - **The clock** is always running (site-dependent, shrinks as the game gets
   harder).
-- **Heat** builds while you spray — faster at hot spots, slower with CREEP.
-  Pedestrians wander by and chirp ("NICE COLORS KID" / "I'M CALLING THE
-  COPS!"), adding heat.
+- **Heat** rises with every burst — faster at hot spots, slower with CREEP —
+  and cools off while you pace yourself between presses. Pedestrians wander by
+  and chirp ("NICE COLORS KID" / "I'M CALLING THE COPS!"), adding heat.
 - Heat maxed → **5-0**: a cop rolls in. HIDE (hold SPACE behind the dumpster)
   until he leaves — the clock keeps running — then get back to it. Caught in
   the open and you're **busted**: piece lost, strike earned. Three strikes,
