@@ -2,11 +2,13 @@
 title: Mario-style play - contact enemies, jumping, power states, gear pickups, hearts
 type: feature
 created: "2026-07-13T20:42:01Z"
-modified: "2026-07-13T20:56:14Z"
+modified: "2026-07-13T20:57:40Z"
 author: Matthew Reider
-status: started
+status: delivered
 estimate: "8"
 started: "2026-07-13T20:42:01Z"
+delivered: "2026-07-13T20:57:40Z"
+project: burner
 ---
 
 ## Problem statement

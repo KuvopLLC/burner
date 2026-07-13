@@ -28,3 +28,5 @@
 2026-07-13T20:47:29Z	Matthew Reider	delivered	burner/Mario-style-play-contact-enemies-jumping-power-states-gear-pickups-hearts.md	
 2026-07-13T20:56:14Z	Matthew Reider	rejected	burner/Mario-style-play-contact-enemies-jumping-power-states-gear-pickups-hearts.md	PM: jump arc does not clear the cop sprite (apex 23px vs 30px cop) so jumps still register/read as hits; wants multiple dumpsters along the board with H-to-hide near one; also keyboard-only controls (delivered mid-review).
 2026-07-13T20:56:14Z	Matthew Reider	started	burner/Mario-style-play-contact-enemies-jumping-power-states-gear-pickups-hearts.md	
+2026-07-13T20:57:40Z	Matthew Reider	finished	burner/Mario-style-play-contact-enemies-jumping-power-states-gear-pickups-hearts.md	
+2026-07-13T20:57:40Z	Matthew Reider	delivered	burner/Mario-style-play-contact-enemies-jumping-power-states-gear-pickups-hearts.md	

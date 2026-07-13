@@ -1,6 +1,6 @@
 # burner
 
-[home](index.md) • [tag list](.am/tags.md) • [velocity](.am/velocity.md) • [timeline](.am/timeline.md) • [users](.am/users.md)
+[home](index.md) • [tag list](.am/tags.md) • [velocity](.am/velocity.md) • [timeline](.am/timeline.md) • [users](.am/users.md) • [archive](burner/archive.md)
 
 ### Unstarted
 | User | Title | Points | Tags |
@@ -31,6 +31,9 @@
 ### Delivered
 | User | Title | Points | Tags |
 |---|---|:---:|---|
+|  | [Fun pass - cop patrol, partner paints with you, autofire, title piece, door seam, demo mode](burner/Fun-pass-cop-patrol-partner-paints-with-you-autofire-title-piece-door-seam-demo-mode.md) | 8 |  |
+|  | [Mario-style play - contact enemies, jumping, power states, gear pickups, hearts](burner/Mario-style-play-contact-enemies-jumping-power-states-gear-pickups-hearts.md) | 8 |  |
+|  | [Style engine - study blackbookgraffiti and generate killer varied burners](burner/Style-engine-study-blackbookgraffiti-and-generate-killer-varied-burners.md) | 8 |  |
 
 ### Accepted
 | User | Title | Points | Tags |
