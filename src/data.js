@@ -52,29 +52,30 @@ export const COLORS = [
   { id: 10, name: 'SILVER',     hex: '#c0c4cc' },
 ];
 
+// x/y are positions on the Bronx map asset (see bronx.js — 320x176)
 export const SPOTS = [
   { id: 'e180', name: 'E 180TH ST YARD', kind: 'train', line: '2/5',
-    x: 232, y: 78, exposure: 5, heat: 5, buff: 0.14, cap: 0.0, time: 80 },
+    x: 150, y: 86, exposure: 5, heat: 5, buff: 0.14, cap: 0.0, time: 80 },
   { id: 'westy', name: 'WESTCHESTER YARD', kind: 'train', line: '6',
-    x: 272, y: 108, exposure: 5, heat: 4, buff: 0.12, cap: 0.0, time: 85 },
+    x: 192, y: 108, exposure: 5, heat: 4, buff: 0.12, cap: 0.0, time: 85 },
   { id: 'conc', name: 'CONCOURSE YARD', kind: 'train', line: 'D',
-    x: 128, y: 44, exposure: 4, heat: 4, buff: 0.11, cap: 0.0, time: 85 },
+    x: 97, y: 42, exposure: 4, heat: 4, buff: 0.11, cap: 0.0, time: 85 },
   { id: 'stmary', name: 'ST MARY\'S HANDBALL', kind: 'wall', line: null,
-    x: 148, y: 148, exposure: 2, heat: 1, buff: 0.01, cap: 0.05, time: 110 },
+    x: 92, y: 130, exposure: 2, heat: 1, buff: 0.01, cap: 0.05, time: 110 },
   { id: 'hunts', name: 'HUNTS POINT WAREHOUSE', kind: 'wall', line: null,
-    x: 208, y: 142, exposure: 2, heat: 2, buff: 0.01, cap: 0.03, time: 105 },
+    x: 112, y: 150, exposure: 2, heat: 2, buff: 0.01, cap: 0.03, time: 105 },
   { id: 'cbx', name: 'CROSS BRONX OVERPASS', kind: 'wall', line: null,
-    x: 178, y: 96, exposure: 4, heat: 3, buff: 0.02, cap: 0.07, time: 90 },
+    x: 142, y: 100, exposure: 4, heat: 3, buff: 0.02, cap: 0.07, time: 90 },
   { id: 'fordham', name: 'FORDHAM SCHOOLYARD', kind: 'wall', line: null,
-    x: 152, y: 58, exposure: 3, heat: 2, buff: 0.01, cap: 0.10, time: 100 },
+    x: 118, y: 58, exposure: 3, heat: 2, buff: 0.01, cap: 0.10, time: 100 },
   { id: 'roof', name: 'GRAND CONCOURSE ROOF', kind: 'wall', line: null,
-    x: 120, y: 96, exposure: 4, heat: 2, buff: 0.0, cap: 0.02, time: 95,
+    x: 94, y: 80, exposure: 4, heat: 2, buff: 0.0, cap: 0.02, time: 95,
     requires: 'BUGSY' },
   { id: 'sound', name: 'SOUNDVIEW COURTS', kind: 'wall', line: null,
-    x: 240, y: 132, exposure: 2, heat: 1, buff: 0.01, cap: 0.04, time: 110,
+    x: 146, y: 142, exposure: 2, heat: 1, buff: 0.01, cap: 0.04, time: 110,
     requires: 'RONDO' },
   { id: 'nova', name: 'GALLERY NOVA', kind: 'gallery', line: null,
-    x: 132, y: 168, exposure: 1, heat: 0, buff: 0.0, cap: 0.0, time: 130 },
+    x: 76, y: 138, exposure: 1, heat: 0, buff: 0.0, cap: 0.0, time: 130 },
 ];
 
 // Gear tracks — racked between missions. Tier 0 is what you start with.

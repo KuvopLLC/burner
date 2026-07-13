@@ -8,6 +8,7 @@ import { makeRng, irange } from './rng.js';
 import { makePiece, renderPiece, renderSketch, makeKid, makePedestrian } from './gen.js';
 import { newRun, advanceDay, availableSpots, dailyIncome, livePieceCount, loadHighScores, saveHighScore, pointsPerDay } from './world.js';
 import { paintScene, resultScene, drawCrewCorner } from './paint.js';
+import { buildBronxMap, MAP_H } from './bronx.js';
 import { playBeat, stopBeat, sfxPop, sfxTick, sfxCash, sfxBust } from './audio.js';
 
 function hashStr(s) {
@@ -271,16 +272,12 @@ const sketchScene = {
 
 // ---- MAP -------------------------------------------------------------------
 
-const LINES = [
-  { name: '4', color: '#00933c', pts: [[104, 185], [108, 120], [112, 60], [116, 20]] },
-  { name: 'D', color: '#ff6319', pts: [[92, 185], [110, 120], [124, 60], [130, 30]] },
-  { name: '2/5', color: '#ee352e', pts: [[150, 185], [170, 130], [210, 95], [232, 60], [236, 30]] },
-  { name: '6', color: '#00a65c', pts: [[142, 185], [190, 150], [250, 122], [290, 96]] },
-];
+let bronxMap = null; // built once, kept for the whole session
 
 const mapScene = {
   enter(G) {
-    this.spots = availableSpots(G.run);
+    if (!bronxMap) bronxMap = buildBronxMap();
+    this.spots = availableSpots(G.run).slice().sort((a, b) => a.x - b.x);
     this.sel = 0;
     this.t = 0;
     this.retX = this.spots[0].x; this.retY = this.spots[0].y;
@@ -301,50 +298,35 @@ const mapScene = {
     }
   },
   draw(G, ctx) {
-    rect(ctx, 0, 0, W, H, '#0a1420');            // rivers
-    // the borough
-    ctx.fillStyle = '#1c2818';
-    ctx.beginPath();
-    ctx.moveTo(80, 200); ctx.lineTo(84, 130); ctx.lineTo(96, 70); ctx.lineTo(110, 14);
-    ctx.lineTo(250, 14); ctx.lineTo(300, 60); ctx.lineTo(304, 110);
-    ctx.lineTo(260, 150); ctx.lineTo(230, 200);
-    ctx.closePath(); ctx.fill();
-    text(ctx, 'HARLEM RIVER', 4, 100, '#1e3a50');
-    text(ctx, 'THE BRONX', 130, 4, '#4a6a40');
-    // els
-    for (const l of LINES) {
-      ctx.strokeStyle = l.color;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(l.pts[0][0], l.pts[0][1]);
-      for (const [x, y] of l.pts.slice(1)) ctx.lineTo(x, y);
-      ctx.stroke();
-      text(ctx, l.name, l.pts[l.pts.length - 1][0] - 4, l.pts[l.pts.length - 1][1] - 10, l.color);
-    }
+    ctx.drawImage(bronxMap, 0, 0);
+
     // spots
     this.spots.forEach((s, i) => {
+      const col = s.kind === 'train' ? '#ff4070' : s.kind === 'gallery' ? '#c8c8d8' : '#ffd94a';
       const blink = Math.sin(this.t * 5 + i) > 0;
-      const col = s.kind === 'train' ? '#ff3060' : s.kind === 'gallery' ? '#c0c0d0' : '#ffe040';
-      if (blink || i === this.sel) rect(ctx, s.x - 2, s.y - 2, 4, 4, col);
+      rect(ctx, s.x - 1, s.y - 1, 3, 3, blink || i === this.sel ? col : '#6a6a55');
+      if (i === this.sel) frame(ctx, s.x - 3, s.y - 3, 7, 7, col);
     });
+
     // reticle
     const rx = Math.round(this.retX), ry = Math.round(this.retY);
-    frame(ctx, rx - 6, ry - 6, 12, 12, '#fff');
-    rect(ctx, rx - 9, ry, 3, 1, '#fff'); rect(ctx, rx + 7, ry, 3, 1, '#fff');
-    rect(ctx, rx, ry - 9, 1, 3, '#fff'); rect(ctx, rx, ry + 7, 1, 3, '#fff');
+    frame(ctx, rx - 6, ry - 6, 13, 13, '#fff');
+    rect(ctx, rx - 10, ry, 3, 1, '#fff'); rect(ctx, rx + 8, ry, 3, 1, '#fff');
+    rect(ctx, rx, ry - 10, 1, 3, '#fff'); rect(ctx, rx, ry + 8, 1, 3, '#fff');
 
-    // info panel
+    // info bar lives BELOW the map — the borough stays clear
     const s = this.spots[this.sel];
-    panel(ctx, 4, 146, 236, 40, '#101018', '#3a3a52');
-    text(ctx, s.name + (s.line ? ` (${s.line})` : ''), 10, 150, '#fff');
-    text(ctx, 'SEEN ' + '★'.repeat(s.exposure), 10, 162, '#ffe040');
-    text(ctx, 'HEAT ' + (s.heat ? '★'.repeat(s.heat) : 'NONE'), 84, 162, '#ff5030');
-    text(ctx, `${s.time} SEC`, 160, 162, '#8ac');
-    text(ctx, s.kind === 'train' ? 'WHOLE CITY SEES A TRAIN. BUFF COMES QUICK.'
-      : s.kind === 'gallery' ? 'SAFE. PERMANENT. NOBODY REAL SEES IT.'
-      : 'WALLS RUN LONG. TOYS MIGHT CAP YOU.', 10, 174, '#888');
+    rect(ctx, 0, MAP_H, W, H - MAP_H, '#0d0d15');
+    rect(ctx, 0, MAP_H, W, 1, '#32324a');
+    text(ctx, s.name + (s.line ? ` (${s.line})` : ''), 6, 179, '#fff');
+    text(ctx, `${s.time}S`, 140, 179, '#8ac');
+    text(ctx, 'SEEN ' + '★'.repeat(s.exposure), 182, 179, '#ffe040');
+    text(ctx, 'HEAT ' + (s.heat ? '★'.repeat(s.heat) : 'NONE'), 250, 179, '#ff5030');
+    text(ctx, s.kind === 'train' ? 'WHOLE CITY SEES IT. BUFF COMES QUICK.'
+      : s.kind === 'gallery' ? 'SAFE. PERMANENT. NOBODY SEES IT.'
+      : 'RUNS LONG. TOYS MIGHT CAP IT.', 6, 190, '#8a8a96');
+    if (Math.sin(this.t * 4) > -0.3) text(ctx, '[ENTER] GO', 254, 190, '#fff');
     drawCrewCorner(G, ctx);
-    centerText(ctx, 'ARROWS: MOVE TARGET   [ENTER] GO', 190, '#fff');
   },
 };
 

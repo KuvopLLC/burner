@@ -71,7 +71,10 @@ setInterval(() => {
       if (sc.t > 1.1) key('Enter');
       break;
     case 'map':
-      if (el >= 300) key('Enter');
+      if (el >= 300) {
+        if (sc.spots[sc.sel].kind !== 'train') key('ArrowRight'); // aim for a yard
+        else key('Enter');
+      }
       break;
     case 'paint':
       paintTick(G, sc.s);
