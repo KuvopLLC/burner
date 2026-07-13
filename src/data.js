@@ -2,40 +2,38 @@
 
 export const SKILLS = [
   { key: 'sketch', name: 'SKETCH', desc: 'A PLANNED PIECE. EACH BURST COVERS MORE.' },
-  { key: 'cans',   name: 'CANS',   desc: 'CAN CONTROL. FASTER, THICKER FILLS.' },
-  { key: 'rack',   name: 'RACK',   desc: 'STEALING GEAR. WIDER POCKET WINDOW.' },
-  { key: 'dash',   name: 'DASH',   desc: 'THE GETAWAY. COPS GIVE UP SOONER.' },
-  { key: 'creep',  name: 'CREEP',  desc: 'MOVE UNSEEN. HEAT BUILDS SLOWER.' },
-  { key: 'rep',    name: 'REP',    desc: 'WORD TRAVELS. PIECES EARN FASTER.' },
+  { key: 'cans',   name: 'CANS',   desc: 'CAN CONTROL. BIG BURSTS AT 5+.' },
+  { key: 'dash',   name: 'DASH',   desc: 'THE GETAWAY. TROUBLE GIVES UP SOONER.' },
+  { key: 'creep',  name: 'CREEP',  desc: 'MOVE UNSEEN. TROUBLE COMES SLOWER.' },
 ];
 
-export const SKILL_POINTS = 12; // distributed on top of base 1 each, cap 6
+export const SKILL_POINTS = 8; // distributed on top of base 1 each, cap 6
 
 export const PARTNERS = [
   { tag: 'LADY VEX', style: 'WILDSTYLE ROYALTY',
     bio: 'ARROWS INSIDE ARROWS. NOBODY CAN READ HER LETTERS.',
-    perk: 'QUALITY BONUS ON FINISHED PIECES', hue: 300, minFit: 2 },
+    perk: 'REGIONS FINISH EASIER', hue: 300 },
   { tag: 'CRISPO 149', style: 'THROW-UP MACHINE',
     bio: 'TWO COLORS, NINETY SECONDS, GONE. HIT EVERY LINE LAST SUMMER.',
-    perk: 'PAINT FLOWS FASTER', hue: 10, minFit: 0 },
+    perk: 'BIGGER SPRAY BURSTS', hue: 10 },
   { tag: 'MERC ONE', style: 'YARD RAT',
     bio: 'SLEEPS DAYS. KNOWS THE LAYUPS BETTER THAN THE MTA DOES.',
-    perk: 'YARD HEAT BUILDS SLOWER', hue: 200, minFit: 0 },
+    perk: 'TROUBLE COMES SLOWER IN THE YARDS', hue: 200 },
   { tag: 'SABLE', style: 'BLOCKBUSTER LETTERS',
     bio: 'LETTERS SO BIG YOU READ THEM FROM THE EXPRESSWAY.',
-    perk: 'BIGGER SPRAY RADIUS', hue: 45, minFit: 0 },
+    perk: 'BIGGER SPRAY BURSTS', hue: 45 },
   { tag: 'KWIK 12', style: 'THE LOOKOUT',
     bio: 'WHISTLES LIKE A BIRD. ONE LONG NOTE MEANS RUN.',
-    perk: 'EARLY WARNING BEFORE THE COPS ROLL UP', hue: 120, minFit: 0 },
+    perk: 'WARNING BEFORE TROUBLE ARRIVES', hue: 120 },
   { tag: 'TEKO 5', style: 'CAN CHEMIST',
     bio: 'SWAPS CAPS OFF OVEN CLEANER. SPRAYS A FIST-WIDE LINE.',
-    perk: '+2 SPRAY RADIUS', hue: 170, minFit: 1 },
+    perk: '+2 SPRAY BURST', hue: 170 },
   { tag: 'BUGSY', style: 'THE CLIMBER',
     bio: 'NO FEAR OF HEIGHTS. NO FEAR OF ANYTHING. DON\'T LOOK DOWN.',
-    perk: 'UNLOCKS ROOFTOP SPOTS', hue: 25, minFit: 1 },
+    perk: 'UNLOCKS ROOFTOP SPOTS', hue: 25 },
   { tag: 'RONDO', style: 'OLD HEAD',
     bio: 'WAS UP BEFORE YOU WERE BORN. KNOWS EVERY WALL THE COPS FORGOT.',
-    perk: 'UNLOCKS HIDDEN WALL SPOTS', hue: 260, minFit: 2 },
+    perk: 'UNLOCKS HIDDEN WALL SPOTS', hue: 260 },
 ];
 
 // Spray can colors. id 0 reserved for "no paint".
@@ -52,50 +50,30 @@ export const COLORS = [
   { id: 10, name: 'SILVER',     hex: '#c0c4cc' },
 ];
 
-// x/y are positions on the Bronx map asset (see bronx.js — 320x176)
+// x/y are positions on the Bronx map asset (see bronx.js — 320x176).
+// danger drives how fast trouble (cops, dogs) shows up while you paint.
 export const SPOTS = [
   { id: 'e180', name: 'E 180TH ST YARD', kind: 'train', line: '2/5',
-    x: 150, y: 86, exposure: 5, heat: 5, buff: 0.14, cap: 0.0, time: 80 },
+    x: 150, y: 86, danger: 5 },
   { id: 'westy', name: 'WESTCHESTER YARD', kind: 'train', line: '6',
-    x: 192, y: 108, exposure: 5, heat: 4, buff: 0.12, cap: 0.0, time: 85 },
+    x: 192, y: 108, danger: 4 },
   { id: 'conc', name: 'CONCOURSE YARD', kind: 'train', line: 'D',
-    x: 97, y: 42, exposure: 4, heat: 4, buff: 0.11, cap: 0.0, time: 85 },
+    x: 97, y: 42, danger: 4 },
   { id: 'stmary', name: 'ST MARY\'S HANDBALL', kind: 'wall', line: null,
-    x: 92, y: 130, exposure: 2, heat: 1, buff: 0.01, cap: 0.05, time: 110 },
+    x: 92, y: 130, danger: 1 },
   { id: 'hunts', name: 'HUNTS POINT WAREHOUSE', kind: 'wall', line: null,
-    x: 112, y: 150, exposure: 2, heat: 2, buff: 0.01, cap: 0.03, time: 105 },
+    x: 112, y: 150, danger: 2 },
   { id: 'cbx', name: 'CROSS BRONX OVERPASS', kind: 'wall', line: null,
-    x: 142, y: 100, exposure: 4, heat: 3, buff: 0.02, cap: 0.07, time: 90 },
+    x: 142, y: 100, danger: 3 },
   { id: 'fordham', name: 'FORDHAM SCHOOLYARD', kind: 'wall', line: null,
-    x: 118, y: 58, exposure: 3, heat: 2, buff: 0.01, cap: 0.10, time: 100 },
+    x: 118, y: 58, danger: 2 },
   { id: 'roof', name: 'GRAND CONCOURSE ROOF', kind: 'wall', line: null,
-    x: 94, y: 80, exposure: 4, heat: 2, buff: 0.0, cap: 0.02, time: 95,
-    requires: 'BUGSY' },
+    x: 94, y: 80, danger: 2, requires: 'BUGSY' },
   { id: 'sound', name: 'SOUNDVIEW COURTS', kind: 'wall', line: null,
-    x: 146, y: 142, exposure: 2, heat: 1, buff: 0.01, cap: 0.04, time: 110,
-    requires: 'RONDO' },
+    x: 146, y: 142, danger: 1, requires: 'RONDO' },
   { id: 'nova', name: 'GALLERY NOVA', kind: 'gallery', line: null,
-    x: 76, y: 138, exposure: 1, heat: 0, buff: 0.0, cap: 0.0, time: 130 },
+    x: 76, y: 138, danger: 0 },
 ];
-
-// Gear tracks — racked between missions. Tier 0 is what you start with.
-export const GEAR = {
-  paint: {
-    name: 'PAINT', store: 'HARDWARE STORE',
-    tiers: ['STOCK CANS', 'FAT CAPS', 'PRO CANS', 'IMPORTED'],
-    blurb: 'BETTER PAINT FLOWS FASTER. FINISH BEFORE THE CLOCK.',
-  },
-  kicks: {
-    name: 'KICKS', store: 'SPORTING GOODS',
-    tiers: ['BEAT KICKS', 'FRESH SHELLS', 'FAT LACES', 'UNTOUCHED PAIRS'],
-    blurb: 'RUN FASTER. COPS GIVE UP. CLEANER GETAWAYS.',
-  },
-  fit: {
-    name: 'FIT', store: 'CLOTHING SPOT',
-    tiers: ['PLAIN', 'TRACK SUIT', 'ROPE CHAIN', 'FULL FIT'],
-    blurb: 'RESPECT. BETTER ARTISTS SHOW UP. PIECES WORTH MORE.',
-  },
-};
 
 export const PED_LINES = [
   'NICE COLORS KID', 'YO THAT\'S FRESH', 'MY TAXES PAY FOR THAT WALL',

@@ -18,19 +18,24 @@ An 8-bit graffiti game. 1980s Bronx. You get up, you stay up.
   wave bass and lead, the way an 80s sound chip would play a hip hop beat.
   Every scene gets its own seeded pattern.
 
-## The six skills
+## The core (current focus)
+
+The game is deliberately lean right now: **paint the piece, avoid what comes
+down the street, survive as many nights as you can.** No clocks, no meters,
+no economy — one verb for trouble (SPACE = hide) and one verb for paint
+(point + X). Score is the count of burners you got up before three strikes.
+
+## The four skills
 
 D&D-style point-buy at the start of a run. Each starts at 1, you distribute
-12 points, cap 6 per skill.
+8 points, cap 6 per skill.
 
 | Skill  | What it is                    | Mechanical effect |
 |--------|-------------------------------|-------------------|
 | SKETCH | Line quality, blackbook hours | Bigger spray bursts — a planned piece goes up faster |
-| CANS   | Can control — fills, fades    | Less paint wasted per pixel; high CANS adds burst size |
-| RACK   | Racking paint from the store  | More cans / more paint in the bag each mission |
-| DASH   | The getaway                   | Cops give up sooner, longer grace before a bust |
-| CREEP  | Moving unseen                 | Heat builds slower — dogs, security, and transit workers clock you late |
-| REP    | Word on the street            | Live pieces earn points faster (multiplier) |
+| CANS   | Can control — fills, fades    | Burst size bonus at 5+ |
+| DASH   | The getaway                   | Trouble gives up sooner, longer grace before a bust |
+| CREEP  | Moving unseen                 | Trouble comes slower |
 
 ## Partners
 
@@ -41,12 +46,12 @@ bio, a signature style you can look at, and one mechanical perk:
 
 | Tag         | Style                        | Perk |
 |-------------|------------------------------|------|
-| LADY VEX    | Wildstyle royalty            | Finished pieces score a quality bonus |
-| CRISPO 149  | Throw-up machine             | Paint flows faster |
-| MERC ONE    | Lives in the yards           | Train yard heat builds slower |
-| SABLE       | Blockbuster letters          | Bigger spray radius |
-| KWIK 12     | The lookout                  | Whistles a warning before the cops arrive |
-| TEKO 5      | Can chemist, custom fat caps | +2 spray radius, thicker coverage |
+| LADY VEX    | Wildstyle royalty            | Regions finish easier |
+| CRISPO 149  | Throw-up machine             | Bigger spray bursts |
+| MERC ONE    | Lives in the yards           | Trouble comes slower in the yards |
+| SABLE       | Blockbuster letters          | Bigger spray bursts |
+| KWIK 12     | The lookout                  | Whistles a warning before trouble arrives |
+| TEKO 5      | Can chemist, custom fat caps | +2 spray burst |
 | BUGSY       | The climber                  | Unlocks rooftop spots |
 | RONDO       | Old head, knows every wall   | Unlocks hidden wall spots |
 
@@ -54,16 +59,17 @@ All partner characters are fictional.
 
 ## The map — where the burner goes
 
-Stylized pixel map of the Bronx: the Harlem River, the els drawn as colored
-lines, neighborhoods labeled. You move a target reticle between available
-spots. Risk/reward is the core decision:
+Hand-rasterized pixel map of the Bronx: the Harlem River, Manhattan and
+Queens across the water, the peninsulas, parks, expressways, and all the els
+on true-ish routes. You move a target reticle between available spots. Each
+spot has a **danger** rating — how fast trouble finds you there:
 
-| Spot type   | Exposure | Heat | How it dies |
-|-------------|----------|------|-------------|
-| Train yard  | ★★★★★ (it *moves* — whole city sees it) | ★★★★★ | The buff — MTA cleans trains fast |
-| Highway / rooftop | ★★★★ | ★★★ | Slow fade, occasional cap |
-| Handball court / schoolyard wall | ★★ | ★ | Toy crews cap over it |
-| Gallery     | ★ | none | Never — but almost nobody sees it. Worst option for getting up. |
+| Spot type   | Danger | The trade |
+|-------------|--------|-----------|
+| Train yard  | ★★★★+  | The whole city sees a train — and the yards have dogs |
+| Highway / rooftop wall | ★★★ | Seen from the expressway, watched by the street |
+| Handball court / schoolyard | ★–★★ | Quiet, good for finding your feet |
+| Gallery     | none   | Safe and warm. Nobody real sees it. Practice. |
 
 Launch spots: E 180th St Yard (2/5), Westchester Yard (6), Concourse Yard (D),
 St Mary's Park handball court, Hunts Point warehouse, Cross Bronx overpass,
@@ -81,60 +87,46 @@ Gallery Nova in Mott Haven.
   wrong can and nothing sticks — you just rattled the can and drew attention.
   The region pulses while its can is selected, an aiming ring shows the burst
   size, and a finished region flashes with a pop.
-- **The clock** is always running (site-dependent, shrinks as the game gets
-  harder).
-- **Heat** rises with every burst — faster at hot spots, slower with CREEP —
-  and cools off while you pace yourself between presses. Pedestrians wander by
-  and chirp ("NICE COLORS KID" / "I'M CALLING THE COPS!"), adding heat.
-- Heat maxed → **5-0**: a cop rolls in. HIDE (hold SPACE behind the dumpster)
-  until he leaves — the clock keeps running — then get back to it. Caught in
-  the open and you're **busted**: piece lost, strike earned. Three strikes,
-  run over.
-- Timer out with ≥60% coverage → the piece goes up at that quality. Under 60%
-  and it's a toy piece — barely worth anything.
-- Later: dogs in the yards, ladders that competing crews steal mid-piece,
-  third-rail scares, flashlight security patterns.
+- **No clock.** You stay at the wall until the piece is finished — or until
+  the street takes you. The pressure is what comes at you:
+- **Trouble arrives in waves** that come faster (1) the more dangerous the
+  spot, (2) the longer you've been standing at this wall, and (3) the deeper
+  into the run you are — night 5 is meaner than night 1. CREEP slows the
+  waves; KWIK 12 whistles before each one lands.
+  - **The 5-0**: a cop walks in slow and lingers. HIDE (hold SPACE behind the
+    dumpster) until he leaves, then get back to work. Later nights: he walks
+    faster and stays longer.
+  - **The yard dog**: fast, low, no siren — just a bark and a red eye. Hop
+    the dumpster (SPACE) before he crosses your spot. Later nights: faster.
+  - Pedestrians wander through and chirp ("NICE COLORS KID" / "I'M CALLING
+    THE COPS!") — neighborhood flavor, keeping you honest.
+- Caught in the open — cop or dog — and it's a **strike**: piece lost. Three
+  strikes and the run is over.
+- Finish **every color region** and the piece goes up: polaroid, check mark,
+  page in the book, next night. Every burner you land makes the city meaner.
+- Later hazards: flashlight security sweeps, ladders that rival crews steal
+  mid-piece, third-rail scares.
 
-## Racking — the gear economy
+## The book
 
-Between missions you can go on a **rack run**: hit a store and steal gear.
-It's a timing minigame — wait for the clerk to look away, pocket the item at
-the right moment. RACK widens the timing window, CREEP slows suspicion.
-Getting made means getting chased out empty-handed and burning a day.
-
-Three stores, three upgrade tracks:
-
-| Store           | You steal        | What it does |
-|-----------------|------------------|--------------|
-| Hardware store  | Better paint     | Higher tiers flow faster and cover thicker — an efficient can is how a burner gets **done on time** |
-| Sporting goods  | Better sneakers  | You run faster — cops give up sooner, longer grace before a bust, cleaner getaways |
-| Clothing spot   | Fresher gear     | Fits, chains, hats — respect. Better artists show up in the tumbler and your burners are worth more |
-
-Each track has tiers (stock caps → fat caps → imported paint; beat kicks →
-fresh shell-toes → unlaced-and-fat-laced; plain → track suit → full rope-chain
-fit). Higher tiers are guarded harder.
-
-## The book & the score — the Monopoly engine
-
-Every finished piece earns a page in the black book: the sketch, a **polaroid**
-of the finished piece in place, a check mark, and a live points counter.
-
-- Each live piece earns **points per day** = exposure × quality × REP
-  multiplier. Trains earn a "still running" bonus.
-- Pieces die three ways: **buffed** (cleaned — trains go fast), **capped**
-  (another writer paints over you — contested walls), or **fade** (slow,
-  honorable, earns the longest).
-- More pieces up → more income per day → it compounds. The book shows the
-  whole portfolio ticking like rent.
+Every finished piece earns a page in the black book: the sketch, a
+**polaroid** of the finished piece in place, and a check mark. Old pieces
+eventually get buffed (which frees the spot back up). Your score is simple
+and honest: **how many burners you got up.**
 
 ## Difficulty ramp
 
-Classic 80s escalation: every finished piece raises city heat — shorter
-timers, faster cops, more decoy cans, stricter coverage. The game is teaching
-your hands.
+Classic 80s escalation, driven by one number — how many nights you've
+survived. Trouble spawns sooner, cops walk faster and stay longer, dogs run
+faster and show up more often. Within a single wall session the waves also
+tighten the longer you stand there. The game is teaching your hands.
 
-## Later (not in v1)
+## Later (parked for now, by design)
 
+- The points/fame economy: pieces earning per day while they run, compounding
+  Monopoly-style; quality scoring
+- Racking: stealing paint / kicks / fits between missions (better gear,
+  better partners, more valuable pieces)
 - Online leaderboard (high scores are localStorage for now)
 - Whole-car and end-to-end train pieces, multi-night burners
 - Crew system, beef, and cap wars with rival AI writers

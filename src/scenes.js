@@ -1,15 +1,15 @@
 // scenes.js — everything around the paint scene: title, tag entry, skills,
 // the partner tumbler, the sketch, the Bronx map, the black book,
-// intermission days, rack runs, game over.
+// the between-nights breather, game over.
 
 import { W, H, text, textWidth, centerText, rect, frame, panel, dither } from './gfx.js';
-import { SKILLS, SKILL_POINTS, PARTNERS, SPOTS, GEAR } from './data.js';
+import { SKILLS, SKILL_POINTS, PARTNERS, SPOTS } from './data.js';
 import { makeRng, irange } from './rng.js';
-import { makePiece, renderPiece, renderSketch, makeKid, makePedestrian } from './gen.js';
-import { newRun, advanceDay, availableSpots, dailyIncome, livePieceCount, loadHighScores, saveHighScore, pointsPerDay } from './world.js';
+import { makePiece, renderPiece, renderSketch, makeKid } from './gen.js';
+import { newRun, availableSpots, level, loadHighScores, saveHighScore } from './world.js';
 import { paintScene, resultScene, drawCrewCorner } from './paint.js';
 import { buildBronxMap, MAP_H } from './bronx.js';
-import { playBeat, stopBeat, sfxPop, sfxTick, sfxCash, sfxBust } from './audio.js';
+import { playBeat, stopBeat, sfxPop, sfxTick } from './audio.js';
 
 function hashStr(s) {
   let h = 2166136261;
@@ -50,7 +50,7 @@ const titleScene = {
     if (this.hs.length) {
       centerText(ctx, '-- KINGS OF THE LINE --', 118, '#888');
       this.hs.slice(0, 4).forEach((h, i) => {
-        centerText(ctx, `${h.tag}  ${h.score}`, 128 + i * 10, i === 0 ? '#ffe040' : '#aaa');
+        centerText(ctx, `${h.tag}  ${h.piecesUp} UP`, 128 + i * 10, i === 0 ? '#ffe040' : '#aaa');
       });
     } else {
       centerText(ctx, 'ARROWS + ENTER: MENUS   MOUSE: PAINT', 124, '#888');
@@ -133,8 +133,8 @@ const skillsScene = {
 const partnerScene = {
   enter(G) {
     const run = G.run;
-    playBeat(hashStr('tumbler') + run.day);
-    this.cands = PARTNERS.filter(p => p.minFit <= run.gear.fit);
+    playBeat(hashStr('tumbler') + level(run));
+    this.cands = PARTNERS.slice();
     this.target = irange(run.rng, 0, this.cands.length - 1);
     this.pos = 0;               // reel position in partner-heights
     this.speed = 10 + run.rng() * 3;
@@ -232,7 +232,7 @@ function wrapText(ctx, str, x, y, maxW, color) {
 const sketchScene = {
   enter(G) {
     const run = G.run;
-    const seed = (hashStr(run.tag + run.partner.tag) + run.day * 7919) >>> 0;
+    const seed = (hashStr(run.tag + run.partner.tag) + (level(run) + 1) * 7919) >>> 0;
     run.piece = makePiece(run.tag, seed);
     this.sketch = renderSketch(run.piece);
     this.t = 0;
@@ -248,7 +248,7 @@ const sketchScene = {
     panel(ctx, 24, 20, 272, 150, '#efe9d8', '#8a7a5a');
     rect(ctx, 158, 22, 2, 146, '#c8bfa4'); // spine
     text(ctx, 'THE BLACK BOOK', 34, 26, '#6a5a3a');
-    text(ctx, `PIECE NO. ${run.piecesDone + 1}`, 34, 38, '#6a5a3a');
+    text(ctx, `PIECE NO. ${level(run) + 1}`, 34, 38, '#6a5a3a');
     text(ctx, `W/ ${run.partner.tag}`, 34, 50, '#a05030');
     // sketch reveals left to right
     const reveal = Math.min(1, this.t / 1.6) * run.piece.w;
@@ -319,12 +319,10 @@ const mapScene = {
     rect(ctx, 0, MAP_H, W, H - MAP_H, '#0d0d15');
     rect(ctx, 0, MAP_H, W, 1, '#32324a');
     text(ctx, s.name + (s.line ? ` (${s.line})` : ''), 6, 179, '#fff');
-    text(ctx, `${s.time}S`, 140, 179, '#8ac');
-    text(ctx, 'SEEN ' + '★'.repeat(s.exposure), 182, 179, '#ffe040');
-    text(ctx, 'HEAT ' + (s.heat ? '★'.repeat(s.heat) : 'NONE'), 250, 179, '#ff5030');
-    text(ctx, s.kind === 'train' ? 'WHOLE CITY SEES IT. BUFF COMES QUICK.'
-      : s.kind === 'gallery' ? 'SAFE. PERMANENT. NOBODY SEES IT.'
-      : 'RUNS LONG. TOYS MIGHT CAP IT.', 6, 190, '#8a8a96');
+    text(ctx, 'DANGER ' + (s.danger ? '★'.repeat(s.danger) : 'NONE'), 216, 179, '#ff5030');
+    text(ctx, s.kind === 'train' ? 'THE WHOLE CITY SEES A TRAIN. DOGS IN THE YARD.'
+      : s.kind === 'gallery' ? 'SAFE AND WARM. NOBODY REAL SEES IT.'
+      : 'A GOOD WALL. WATCH THE STREET.', 6, 190, '#8a8a96');
     if (Math.sin(this.t * 4) > -0.3) text(ctx, '[ENTER] GO', 254, 190, '#fff');
     drawCrewCorner(G, ctx);
   },
@@ -356,179 +354,47 @@ const bookScene = {
       ctx.drawImage(e.polaroid, x + 60, 80);
       // the check mark
       text(ctx, '✓', x + 108, 40, '#308030', 2);
-      const stCol = { UP: '#308030', BUFFED: '#a03030', CAPPED: '#a03030', FADED: '#8a7a5a' }[e.status];
-      text(ctx, e.status === 'UP' ? `UP ${e.age}D` : e.status, x, 82, stCol);
-      text(ctx, `QUAL ${Math.floor(e.quality * 100)}%`, x, 94, '#4a4034');
-      text(ctx, `EARNED ${e.earned}`, x, 106, '#4a4034');
-      if (e.status === 'UP') text(ctx, `+${pointsPerDay(run, e)}/DAY`, x, 118, '#308030');
+      text(ctx, e.status === 'UP' ? 'STILL UP' : 'BUFFED', x, 86,
+        e.status === 'UP' ? '#308030' : '#8a7a5a');
     });
     if (!run.pieces.length) centerText(ctx, 'NOTHING IN THE BOOK YET', 88, '#8a7a5a');
     text(ctx, `PAGE ${this.page + 1}`, 150, 162, '#8a7a5a');
-    const live = livePieceCount(run);
-    centerText(ctx, `FAME ${run.score}   INCOME ${dailyIncome(run)}/DAY   ${live} PIECE${live === 1 ? '' : 'S'} RUNNING`, 178, '#ffe040');
+    const n = run.pieces.length;
+    centerText(ctx, `${n} BURNER${n === 1 ? '' : 'S'} UP   STRIKES ${run.strikes}/3`, 178, '#ffe040');
     centerText(ctx, 'ARROWS: FLIP   [ENTER] CLOSE THE BOOK', 190, '#888');
   },
 };
 
-// ---- INTERMISSION — a day passes -------------------------------------------
+// ---- BETWEEN NIGHTS ---------------------------------------------------------
 
 const intermissionScene = {
   enter(G) {
-    const run = G.run;
-    if (G.pendingAdvance) {
-      advanceDay(run);
-      G.pendingAdvance = false;
-    }
-    playBeat(hashStr('day') + run.day);
-    this.income = dailyIncome(run);
+    playBeat(hashStr('night') + level(G.run));
   },
   key(G, e) {
     if (e.type !== 'down') return;
     if (e.key === 'Enter') { G.run.partner = null; G.go('partner'); }
-    if (e.key === 'r' || e.key === 'R') G.go('rack');
     if (e.key === 'b' || e.key === 'B') { G.bookReturn = 'intermission'; G.go('book'); }
   },
   draw(G, ctx) {
     const run = G.run;
     rect(ctx, 0, 0, W, H, '#0c0c1e');
-    // sunrise over rooftops
+    // dusk over rooftops
     dither(ctx, 0, 0, W, 40, '#2a1a30');
     for (let x = 0; x < W; x += 40) {
       rect(ctx, x, 46 + (x % 80 ? 8 : 0), 34, 60 - (x % 80 ? 8 : 0), '#16121e');
       for (let wy = 0; wy < 3; wy++) for (let wx = 0; wx < 3; wx++)
         if ((x + wy + wx) % 3) rect(ctx, x + 6 + wx * 9, 54 + wy * 12, 4, 5, '#3a3020');
     }
-    centerText(ctx, `DAY ${run.day}`, 20, '#ffe040', 2);
-    const live = livePieceCount(run);
-    centerText(ctx, `FAME ${run.score}  (+${this.income}/DAY FROM ${live} PIECE${live === 1 ? '' : 'S'})`, 48, '#fff');
+    const n = level(run);
+    centerText(ctx, `NIGHT ${n + 1}`, 20, '#ffe040', 2);
+    centerText(ctx, `${n} BURNER${n === 1 ? '' : 'S'} UP`, 48, '#fff');
     centerText(ctx, `STRIKES ${run.strikes}/3`, 60, run.strikes ? '#ff5030' : '#666');
-    let y = 78;
-    for (const n of run.news.slice(0, 3)) { centerText(ctx, n, y, '#ff8040'); y += 11; }
-    if (!run.news.length) { centerText(ctx, 'QUIET NIGHT. THE CITY SLEPT ON YOU.', y, '#666'); y += 11; }
-    // gear readout
-    centerText(ctx,
-      `PAINT: ${GEAR.paint.tiers[run.gear.paint]}   KICKS: ${GEAR.kicks.tiers[run.gear.kicks]}   FIT: ${GEAR.fit.tiers[run.gear.fit]}`,
-      y + 8, '#8ac');
+    centerText(ctx, n >= 3 ? 'THE STREETS KNOW YOUR NAME. SO DO THE COPS.'
+      : n >= 1 ? 'WORD IS GETTING AROUND.'
+      : 'THE CITY DOESN\'T KNOW YOU YET.', 82, '#888');
     centerText(ctx, '[ENTER] PAINT TONIGHT', 130, '#fff', 1);
-    centerText(ctx, '[R] RACK RUN — STEAL BETTER GEAR', 146, '#40e050');
-    centerText(ctx, '[B] FLIP THROUGH THE BOOK', 162, '#c0a060');
-  },
-};
-
-// ---- RACK RUN ----------------------------------------------------------------
-
-const rackScene = {
-  enter(G) {
-    this.stage = 'choose';           // choose | steal | done
-    this.storeSel = 0;
-    this.stores = ['paint', 'kicks', 'fit'];
-    this.t = 0;
-    this.marker = 0; this.dir = 1;
-    this.result = null;
-    const run = G.run;
-    this.zoneW = 16 + run.stats.rack * 6;
-    this.zoneX = 0;
-    this.lookAway = 0;               // >0 means clerk looking away
-    this.lookTimer = 1.5;
-    this.rng = makeRng((run.seed ^ (run.day * 2654435761)) >>> 0);
-    this.clerk = makePedestrian((run.seed ^ 0xC1E4) >>> 0);
-  },
-  update(G, dt) {
-    this.t += dt;
-    if (this.stage !== 'steal') return;
-    const run = G.run;
-    // marker ping-pong
-    this.marker += this.dir * 130 * dt;
-    if (this.marker > 200) { this.marker = 200; this.dir = -1; }
-    if (this.marker < 0) { this.marker = 0; this.dir = 1; }
-    // clerk attention
-    this.lookTimer -= dt;
-    if (this.lookTimer <= 0) {
-      if (this.lookAway > 0) { this.lookAway = 0; this.lookTimer = 1.2 + this.rng() * 1.5; }
-      else { this.lookAway = 1; this.lookTimer = (1.4 + this.rng() * 1.6) * (1 + run.stats.creep * 0.15); }
-    }
-  },
-  key(G, e) {
-    if (e.type !== 'down') return;
-    const run = G.run;
-    if (this.stage === 'choose') {
-      if (e.key === 'ArrowLeft') this.storeSel = (this.storeSel + 2) % 3;
-      if (e.key === 'ArrowRight') this.storeSel = (this.storeSel + 1) % 3;
-      if (e.key === 'Escape') G.go('intermission');
-      if (e.key === 'Enter') {
-        const track = this.stores[this.storeSel];
-        if (run.gear[track] >= 3) { this.result = 'MAXED'; this.stage = 'done'; return; }
-        this.stage = 'steal';
-        this.zoneX = 30 + this.rng() * (170 - this.zoneW);
-      }
-    } else if (this.stage === 'steal' && e.key === ' ') {
-      const inZone = this.marker >= this.zoneX && this.marker <= this.zoneX + this.zoneW;
-      if (inZone && this.lookAway) {
-        run.gear[this.stores[this.storeSel]]++;
-        this.result = 'GOT IT';
-        sfxCash();
-      } else {
-        this.result = 'MADE';
-        sfxBust();
-      }
-      this.stage = 'done';
-    } else if (this.stage === 'done' && e.key === 'Enter') {
-      G.pendingAdvance = true;
-      G.go('intermission');
-    }
-  },
-  draw(G, ctx) {
-    const run = G.run;
-    rect(ctx, 0, 0, W, H, '#0c0c1e');
-    centerText(ctx, 'RACK RUN', 10, '#40e050', 2);
-    if (this.stage === 'choose') {
-      centerText(ctx, 'PICK A STORE. GET IN. GET OUT.', 34, '#888');
-      this.stores.forEach((track, i) => {
-        const g = GEAR[track];
-        const x = 16 + i * 100;
-        const isSel = i === this.storeSel;
-        panel(ctx, x, 50, 92, 90, isSel ? '#1a1a2e' : '#101018', isSel ? '#ffe040' : '#3a3a52');
-        text(ctx, g.store, x + 5, 55, isSel ? '#ffe040' : '#aaa');
-        text(ctx, 'HAVE:', x + 5, 72, '#666');
-        text(ctx, g.tiers[run.gear[track]], x + 5, 83, '#8ac');
-        text(ctx, 'NEXT:', x + 5, 100, '#666');
-        text(ctx, run.gear[track] >= 3 ? '(MAXED)' : g.tiers[run.gear[track] + 1], x + 5, 111,
-          run.gear[track] >= 3 ? '#555' : '#40e050');
-      });
-      wrapText(ctx, GEAR[this.stores[this.storeSel]].blurb, 40, 150, 240, '#888');
-      centerText(ctx, 'ARROWS + [ENTER] GO IN   [ESC] FORGET IT', 186, '#fff');
-    } else if (this.stage === 'steal') {
-      const g = GEAR[this.stores[this.storeSel]];
-      centerText(ctx, `INSIDE THE ${g.store}...`, 34, '#888');
-      // clerk behind the counter
-      const clerkX = W / 2 - 8;
-      ctx.drawImage(this.clerk, clerkX, 46);
-      rect(ctx, W / 2 - 30, 66, 60, 8, '#5a4632');
-      rect(ctx, W / 2 - 30, 66, 60, 2, '#6f5940');
-      if (!this.lookAway) text(ctx, '!', clerkX + 6, 36, '#ff4030');
-      text(ctx, this.lookAway ? 'CLERK IS BUSY...' : 'CLERK IS WATCHING',
-        W / 2 - 51, 80, this.lookAway ? '#40e050' : '#ff4030');
-      // timing bar
-      const bx = 60;
-      rect(ctx, bx, 110, 200, 14, '#1a1a2a');
-      rect(ctx, bx + this.zoneX, 111, this.zoneW, 12, this.lookAway ? '#2a6a3a' : '#3a3a2a');
-      rect(ctx, bx + this.marker - 1, 108, 2, 18, '#fff');
-      frame(ctx, bx, 110, 200, 14, '#555');
-      centerText(ctx, 'POCKET IT [SPACE] — IN THE ZONE, WHILE THEY\'RE BUSY', 140, '#ffe040');
-      centerText(ctx, `RACK ${run.stats.rack} WIDENS THE ZONE. CREEP ${run.stats.creep} KEEPS THEM BUSY.`, 154, '#666');
-    } else {
-      const track = this.stores[this.storeSel];
-      if (this.result === 'GOT IT') {
-        centerText(ctx, '*** GOT IT ***', 70, '#40e050', 2);
-        centerText(ctx, `${GEAR[track].tiers[run.gear[track]]} — ${GEAR[track].blurb}`, 100, '#fff');
-      } else if (this.result === 'MAXED') {
-        centerText(ctx, 'NOTHING LEFT TO RACK HERE', 80, '#888', 1);
-      } else {
-        centerText(ctx, 'MADE! THEY CHASED YOU OUT', 70, '#ff4030', 2);
-        centerText(ctx, 'EMPTY HANDS. BURNED A DAY.', 100, '#888');
-      }
-      centerText(ctx, '[ENTER] SLIP OUT', 160, '#fff');
-    }
+    centerText(ctx, '[B] FLIP THROUGH THE BOOK', 152, '#c0a060');
   },
 };
 
@@ -538,20 +404,21 @@ const gameoverScene = {
   enter(G) {
     stopBeat();
     const run = G.run;
-    this.hs = saveHighScore(run.tag, run.score, run.piecesDone);
-    this.isKing = this.hs.length && this.hs[0].tag === run.tag && this.hs[0].score === run.score;
+    const n = level(run);
+    this.hs = saveHighScore(run.tag, n);
+    this.isKing = this.hs.length && this.hs[0].tag === run.tag && this.hs[0].piecesUp === n;
   },
   key(G, e) {
     if (e.type === 'down' && e.key === 'Enter') G.go('title');
   },
   draw(G, ctx) {
     const run = G.run;
+    const n = level(run);
     rect(ctx, 0, 0, W, H, '#180808');
     centerText(ctx, 'THREE STRIKES.', 40, '#ff3030', 2);
     centerText(ctx, 'YOUR PARENTS PICK YOU UP FROM THE PRECINCT.', 66, '#c88');
-    centerText(ctx, `${run.tag} WENT UP ${run.piecesDone} TIMES`, 90, '#fff');
-    centerText(ctx, `FINAL FAME: ${run.score}`, 104, '#ffe040', 1);
-    if (this.isKing) centerText(ctx, '*** NEW KING OF THE LINE ***', 126, '#40e050');
+    centerText(ctx, `${run.tag} GOT UP ${n} BURNER${n === 1 ? '' : 'S'}`, 96, '#ffe040', 1);
+    if (this.isKing && n > 0) centerText(ctx, '*** NEW KING OF THE LINE ***', 120, '#40e050');
     centerText(ctx, 'BUT THE PIECES ARE STILL RUNNING...', 148, '#888');
     centerText(ctx, '[ENTER] BACK TO THE TITLE', 176, '#fff');
   },
@@ -568,6 +435,5 @@ export const SCENES = {
   result: resultScene,
   book: bookScene,
   intermission: intermissionScene,
-  rack: rackScene,
   gameover: gameoverScene,
 };

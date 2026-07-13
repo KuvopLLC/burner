@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>body{margin:0;background:#000;display:flex}canvas{image-rendering:pixelated}</style></head>
+<body><canvas id="screen" width="320" height="200"></canvas>
+<script type="module">
+import '../src/main.js';
+const cv = document.getElementById('screen');
+function key(k, type='both') {
+  if (type!=='up') window.dispatchEvent(new KeyboardEvent('keydown',{key:k}));
+  if (type!=='down') window.dispatchEvent(new KeyboardEvent('keyup',{key:k}));
+}
+function mouse(gx, gy) {
+  const b = cv.getBoundingClientRect(), s = b.width/320;
+  cv.dispatchEvent(new MouseEvent('mousemove',{clientX:b.left+gx*s, clientY:b.top+gy*s, bubbles:true}));
+}
+let phase = 0, t = 0;
+setInterval(() => {
+  const G = window.BURNER; if (!G) return;
+  t += 100; G.step(0.1);
+  const sc = G.scene, s = sc.s;
+  if (G.sceneName === 'title') key('Enter');
+  else if (G.sceneName === 'name') { for (const c of 'ZK') key(c); key('Enter'); }
+  else if (G.sceneName === 'skills') { if (sc.left > 0) { key('ArrowRight'); key('ArrowDown'); } else key('Enter'); }
+  else if (G.sceneName === 'partner') { if (sc.locked && sc.lockT > 0.7) key('Enter'); else if (!sc.locked) key('Enter'); }
+  else if (G.sceneName === 'sketch') { if (sc.t > 1.1) key('Enter'); }
+  else if (G.sceneName === 'map') key('Enter');
+  else if (G.sceneName === 'paint' && s) {
+    mouse(160, 80); // kid stands mid-wall
+    if (phase === 0) { // test 1: dog + hiding = survive
+      s.dog = { x: -20, dir: 1, bit: false };
+      key(' ', 'down');
+      phase = 1; console.log('TEST1: dog released, kid hiding');
+    } else if (phase === 1 && !s.dog) {
+      key(' ', 'up');
+      console.log(`TEST1 RESULT: busted=${s.busted} (want false)`);
+      phase = 2;
+    } else if (phase === 2) { // test 2: dog + exposed = bit
+      s.dog = { x: -20, dir: 1, bit: false };
+      phase = 3; console.log('TEST2: dog released, kid exposed');
+    } else if (phase === 3 && s.busted) {
+      console.log(`TEST2 RESULT: busted=${s.busted} by=${s.bustedBy} (want true/dog)`);
+      phase = 4;
+    }
+  }
+}, 100);
+</script></body></html>

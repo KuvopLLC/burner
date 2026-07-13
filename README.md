@@ -28,17 +28,18 @@ Keyboard + mouse. Full controls on the title screen.
 ## The loop
 
 1. **Name yourself** — enter your tag, arcade style.
-2. **Roll your skills** — distribute points D&D-style across six writer skills.
+2. **Roll your skills** — distribute points D&D-style across four writer skills.
 3. **The tumbler** — a slot-machine reel of partners spins and *pops* on the
    writer you're teaming with. Read their bio, peep their style.
 4. **The sketch** — you and your partner work up a piece in the black book.
 5. **The map** — move the target across the Bronx. Train yard? Handball court?
    Rooftop? A gallery wants you too, but nobody real will see it there.
-6. **Paint** — the arcade heart of the game. Right cans, right spots, against
-   the clock, while heat builds. Hide when the cops roll up. Get back to work.
+6. **Paint** — the arcade heart. Point and hit X: paint only lands where the
+   sketch wants that color. No clock — but cops and yard dogs come in waves
+   that get faster the longer you stand there and the deeper into the run you
+   are. Hold SPACE to hide. Caught three times and the run's over.
 7. **The book** — every finished piece gets a check mark, a sketch page, and a
-   polaroid. Live pieces earn points every day until they're buffed, capped,
-   or fade with honor.
+   polaroid. Your score is how many burners you got up.
 
 See [docs/DESIGN.md](docs/DESIGN.md) for the full design document.
 
@@ -60,6 +61,8 @@ Vary `--virtual-time-budget` to screenshot any scene on the timeline.
 
 ## Status
 
-Early. Core loop playable: name → skills → partner tumbler → sketch → map →
-paint scene (timer, heat, cops, hiding) → polaroid → black book scoring.
-High scores in localStorage. Leaderboard comes later.
+Early, and deliberately lean: the current build is the pure arcade core —
+name → skills → partner tumbler → sketch → map → survival painting (cops,
+yard dogs, waves that escalate every night) → polaroid → black book. Score is
+burners-up before three strikes; high scores in localStorage. The economy
+(points, racking gear) is parked in the design doc for later.

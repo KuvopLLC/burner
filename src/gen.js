@@ -295,6 +295,31 @@ const PED = [
   '.OUUUUO.OUUUUO..',
 ];
 
+// Yard dog, running left. Flip at draw time for the other direction.
+const DOG = [
+  '..OO..............',
+  '.ODDO.............',
+  'ODDDDO.........OO.',
+  'ODEDDO........ODDO',
+  '.OODDOOOOOOOOODDO.',
+  '..ODDDDDDDDDDDDO..',
+  '..OCDDDDDDDDDDO...',
+  '...ODDO..ODDO.....',
+  '...ODO....ODO.....',
+  '...OO......OO.....',
+];
+
+export function makeDog(seed) {
+  const rng = makeRng(seed);
+  const fur = pick(rng, ['#3a332c', '#5a4426', '#2c2c30']);
+  return renderSprite(DOG, {
+    O: '#0e0c0a',
+    D: fur,
+    E: '#ff5030',        // that eye catches the streetlight
+    C: '#cc2233',        // collar
+  });
+}
+
 export function makePedestrian(seed) {
   const rng = makeRng(seed);
   const [skin, skinDark] = pick(rng, SKIN_TONES.concat([['#e0b088', '#c09068']]));

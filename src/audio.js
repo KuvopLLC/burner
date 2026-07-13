@@ -188,6 +188,15 @@ export function sfxBust() {
   for (let i = 0; i < 5; i++) square(t + i * 0.09, 300 - i * 40, 0.08, 0.2);
 }
 
+export function sfxBark() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  square(t, 140, 0.07, 0.25);
+  square(t + 0.02, 90, 0.09, 0.22);
+  square(t + 0.16, 150, 0.07, 0.25);
+  square(t + 0.18, 95, 0.09, 0.22);
+}
+
 export function sfxCash() {
   if (!ac) return;
   const t = ac.currentTime;

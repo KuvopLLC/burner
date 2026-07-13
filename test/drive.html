@@ -81,7 +81,7 @@ setInterval(() => {
       break;
     case 'result':
       if (sc.s.t > 1.1) {
-        console.log(`RESULT quality=${Math.round(sc.s.quality * 100)}% flopped=${sc.s.flopped}`);
+        console.log(`RESULT burners up=${G.run.pieces.length}`);
         key('Enter');
       }
       break;
@@ -89,15 +89,13 @@ setInterval(() => {
       if (el >= 600) key('Enter');
       break;
     case 'intermission':
-      if (rackDone) { done = true; console.log('DRIVE DONE @ ' + now); break; }
-      if (el >= 400) key('r');
-      break;
-    case 'rack':
-      if (sc.stage === 'choose' && el >= 300) key('Enter');
-      else if (sc.stage === 'steal') {
-        const inZone = sc.marker >= sc.zoneX + 2 && sc.marker <= sc.zoneX + sc.zoneW - 2;
-        if (inZone && sc.lookAway) key(' ');
-      } else if (sc.stage === 'done' && el >= 500) { rackDone = true; key('Enter'); }
+      if (G.run.pieces.length >= 2) {
+        done = true;
+        console.log(`DRIVE DONE @ ${now} — burners=${G.run.pieces.length} strikes=${G.run.strikes}`);
+      } else if (el >= 400) {
+        plan = null; copSeen = false; // fresh night
+        key('Enter');
+      }
       break;
     case 'gameover':
       done = true;
@@ -106,54 +104,45 @@ setInterval(() => {
   }
 }, 100);
 
-// Paint like a writer: one region at a time (one can switch each),
-// stroking that region's runs row by row, hiding when the cops roll up.
+// Paint like a writer: one region at a time, bursting straight at
+// uncovered pixels, hiding whenever trouble (cop OR dog) is out.
 function paintTick(G, s) {
   if (!s || s.busted || s.done) return;
   const piece = G.run.piece, w = piece.w;
 
-  if (s.cop && !s.cop.leaving) {
+  const trouble = (s.cop && !s.cop.leaving) || s.dog;
+  if (trouble) {
     if (!hiding) {
       hiding = true;
-      if (!copSeen) { copSeen = true; console.log(`COP @ ${now}`); }
-      mouse('mouseup', 0, 0);
+      if (!copSeen) { copSeen = true; console.log(`TROUBLE (${s.dog ? 'dog' : 'cop'}) @ ${now}`); }
       key(' ', 'down');
     }
     return;
   }
   if (hiding) { hiding = false; key(' ', 'up'); }
 
-  if (!plan) {
-    // burst targets: a grid of points per region, region-major so the
-    // can only switches five times
-    const step = Math.max(5, s.burstR);
-    const pts = [];
-    for (const reg of [5, 4, 1, 2, 3]) {
-      for (let y = Math.floor(step / 2); y < piece.h; y += step) {
-        for (let x = Math.floor(step / 2); x < w; x += step) {
-          if (piece.regions[y * w + x] === reg) pts.push({ reg, x, y });
-        }
-      }
+  if (!plan) { plan = { cursor: 0, reg: null }; console.log(`PAINT START (r=${s.burstR})`); }
+  const regs = [5, 4, 1, 2, 3].filter(r => !s.regDone[r]);
+  if (!regs.length) return; // waiting for the auto-finish
+  const reg = regs[0];
+  if (plan.reg !== reg) { plan.reg = reg; plan.cursor = 0; }
+  const want = piece.palette[reg].id;
+  const canIdx = s.bag.findIndex(c => c.id === want);
+  if (canIdx >= 0 && s.selected !== canIdx) { key(String(canIdx + 1)); return; }
+
+  const total = piece.w * piece.h;
+  for (let n = 0; n < 6 && !s.regDone[reg]; n++) {
+    let found = -1, i = plan.cursor;
+    for (let scanned = 0; scanned < total; scanned++, i = (i + 7) % total) {
+      if (piece.regions[i] === reg && !s.covered[i]) { found = i; break; }
     }
-    plan = { pts, i: 0 };
-    console.log(`PAINT PLAN: ${pts.length} bursts (r=${s.burstR})`);
-  }
-  if (plan.i >= plan.pts.length) {
-    console.log(`PAINT SWEEP DONE @ ${now}, coverage=${Math.round(100 * s.coveredCount / s.totalRegion)}%`);
-    key('Enter');
-    return;
-  }
-  for (let n = 0; n < 8 && plan.i < plan.pts.length; n++) {
-    const p = plan.pts[plan.i];
-    const want = piece.palette[p.reg].id;
-    const canIdx = s.bag.findIndex(c => c.id === want);
-    if (canIdx >= 0 && s.selected !== canIdx) { key(String(canIdx + 1)); break; }
-    mouse('mousemove', PXo + p.x, PYo + p.y);
+    if (found < 0) break;
+    plan.cursor = (found + 7) % total;
+    mouse('mousemove', PXo + (found % w), PYo + ((found / w) | 0));
     G.step(0.01);
     key('x');
-    G.step(0.03);
-    plan.i++;
-    if (s.cop) break; // heat maxed mid-batch
+    G.step(0.02);
+    if (s.cop || s.dog) break;
   }
 }
 </script>

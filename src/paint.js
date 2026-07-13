@@ -1,11 +1,16 @@
 // paint.js — the arcade heart: the paint scene and the result scene.
+// No clock, no meters — the pressure is what comes down the street.
+// Trouble (cops, yard dogs) arrives in waves that come faster the longer
+// you stay at the wall and the deeper into the run you are. Finish every
+// color region and the piece goes up; get caught three times and the
+// run is over.
 
 import { W, H, text, centerText, rect, frame, panel, meter, makeCanvas, drawSurface, makePolaroid } from './gfx.js';
 import { COLORS, PED_LINES } from './data.js';
 import { makeRng, pick, irange } from './rng.js';
-import { makeKid, makeCop, makePedestrian, renderSketch } from './gen.js';
-import { addPiece, pointsPerDay, difficulty } from './world.js';
-import { sfxSpray, sfxSiren, sfxWhistle, sfxBust, sfxPop, sfxTick, playBeat } from './audio.js';
+import { makeKid, makeCop, makeDog, makePedestrian, renderSketch } from './gen.js';
+import { addPiece, level } from './world.js';
+import { sfxSpray, sfxSiren, sfxWhistle, sfxBust, sfxPop, sfxTick, sfxBark, playBeat } from './audio.js';
 
 // Piece placement on screen
 const PX = 40, PY = 34;
@@ -16,12 +21,15 @@ function hashStr(s) {
   return h >>> 0;
 }
 
+const REGION_NAMES = { 1: 'FILL A', 2: 'FILL B', 3: 'LINES', 4: 'SHADOW', 5: 'CLOUD' };
+
 export const paintScene = {
   enter(G) {
     const run = G.run;
     const piece = run.piece, spot = run.spot;
-    const rng = makeRng(hashStr(run.tag + spot.id) ^ run.day);
-    playBeat(hashStr('paint' + spot.id) + run.day);
+    const lvl = level(run);
+    const rng = makeRng(hashStr(run.tag + spot.id) ^ (lvl + 1));
+    playBeat(hashStr('paint' + spot.id) + lvl);
 
     // Guide: sketch boundaries as faint chalk on the surface
     const [guide, gc] = makeCanvas(piece.w, piece.h);
@@ -55,63 +63,64 @@ export const paintScene = {
     const needed = [1, 2, 3, 4, 5].map(r => piece.palette[r]);
     const neededIds = new Set(needed.map(c => c.id));
     const decoys = COLORS.filter(c => !neededIds.has(c.id));
-    const bag = [...needed, pick(rng, decoys), pick(rng, decoys.filter(d => d !== undefined))]
+    const bag = [...needed, pick(rng, decoys), pick(rng, decoys)]
       .filter((c, i, a) => a.indexOf(c) === i);
     while (bag.length < 7) bag.push(pick(rng, decoys));
     for (let i = bag.length - 1; i > 0; i--) { // shuffle
       const j = Math.floor(rng() * (i + 1));
       [bag[i], bag[j]] = [bag[j], bag[i]];
     }
-    const st = run.stats, gear = run.gear, ptag = run.partner.tag;
-    const totalRegion = Object.values(piece.counts).reduce((a, b) => a + b, 0);
-    const paintCap = Math.round(totalRegion * (1.8 + st.rack * 0.25 + gear.paint * 0.3));
 
-    const diff = difficulty(run);
+    const st = run.stats, ptag = run.partner.tag;
     // one key-press = one spray burst; SKETCH plans bigger passes
     let burstR = 6 + Math.floor(st.sketch / 2);
     if (st.cans >= 5) burstR++;
     if (ptag === 'SABLE' || ptag === 'CRISPO 149') burstR++;
     if (ptag === 'TEKO 5') burstR += 2;
-    burstR += Math.floor(gear.paint / 2);
-
-    let burstHeat = 0.9 + spot.heat * 0.15 + diff * 0.06 - st.creep * 0.1;
-    if (ptag === 'MERC ONE' && spot.kind === 'train') burstHeat *= 0.6;
-    burstHeat = Math.max(0.35, burstHeat);
 
     this.s = {
-      rng, piece, spot, guide, masks, bag,
+      rng, piece, spot, guide, masks, bag, lvl,
       covered: new Uint8Array(piece.w * piece.h),
       coveredCount: 0,
-      totalRegion,
+      totalRegion: Object.values(piece.counts).reduce((a, b) => a + b, 0),
       regCov: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
       regDone: {},
+      regDoneFrac: ptag === 'LADY VEX' ? 0.93 : 0.97,
       paintCv: makeCanvas(piece.w, piece.h),
       selected: 0,
-      paint: paintCap, paintCap,
-      cost: Math.max(0.5, 1 - st.cans * 0.06 - gear.paint * 0.08), // paint per pixel
-      burstR, burstHeat,
-      timeLeft: Math.max(40, spot.time - diff * 4),
-      heat: 0,
-      hiding: false,
-      cop: null,          // {x, dir, stay, exposeT}
+      burstR,
+      elapsed: 0,
+      nextTrouble: spot.danger > 0 ? 6 + rng() * 4 : Infinity,
       warned: false,
-      ped: null,          // {x, dir, line, t, sprite}
+      cop: null,          // {x, stay, exposeT, leaving}
+      dog: null,          // {x, dir, bit}
+      ped: null,
       pedTimer: 5 + rng() * 6,
       msg: 'POINT + [X] SPRAY · [1-7] CANS · [SPACE] HIDE',
       msgT: 5,
-      sprayT: 0,          // burst hiss timer
-      readyTold: false,
-      fx: [],             // burst ring effects
-      regFlash: null,     // {rid, t} region-complete flash
-      busted: false, bustedT: 0,
-      done: false,
-      lowTick: 0,
-      kid: makeKid(hashStr(G.run.tag), hashStr(G.run.tag) % 360),
+      sprayT: 0,
+      fx: [],
+      regFlash: null,
+      busted: false, bustedT: 0, bustedBy: null,
+      done: false, doneT: 0,
+      kid: makeKid(hashStr(run.tag), hashStr(run.tag) % 360),
       copSprite: makeCop(hashStr(spot.id)),
-      copStay: Math.max(2.5, 6 - st.dash * 0.35 - gear.kicks * 0.35),
-      bustGrace: 1.2 + st.dash * 0.2 + gear.kicks * 0.3,
+      dogSprite: makeDog(hashStr(spot.id) ^ 77),
+      copStay: Math.max(2.5, 6 + lvl * 0.25 - st.dash * 0.35),
+      bustGrace: 1.2 + st.dash * 0.2,
+      hiding: false,
       pulse: 0,
     };
+  },
+
+  // trouble arrives faster at dangerous spots, on later nights, and the
+  // longer you've been standing at this wall
+  troubleInterval(s, G) {
+    const st = G.run.stats, ptag = G.run.partner.tag;
+    let base = 14 - s.lvl * 0.9 - s.spot.danger * 1.3 + st.creep * 0.9;
+    if (ptag === 'MERC ONE' && s.spot.kind === 'train') base *= 1.4;
+    base *= Math.max(0.5, 1 - s.elapsed / 120);
+    return Math.max(4, base) * (0.8 + s.rng() * 0.4);
   },
 
   update(G, dt) {
@@ -125,17 +134,18 @@ export const paintScene = {
       }
       return;
     }
-    if (s.done) return;
-    s.pulse += dt * 6;
-    s.timeLeft -= dt;
-    s.msgT -= dt;
-
-    // last-seconds tick
-    if (s.timeLeft < 6 && s.timeLeft > 0) {
-      s.lowTick -= dt;
-      if (s.lowTick <= 0) { sfxTick(); s.lowTick = 1; }
+    if (s.done) {
+      s.doneT += dt;
+      if (s.doneT > 1.4) {
+        sfxSpray(false);
+        G.mission = { paintCv: s.paintCv[0] };
+        G.go('result');
+      }
+      return;
     }
-    if (s.timeLeft <= 0) { finishPiece(G, this); return; }
+    s.pulse += dt * 6;
+    s.elapsed += dt;
+    s.msgT -= dt;
 
     // burst hiss + effects
     if (s.sprayT > 0) { s.sprayT -= dt; sfxSpray(true); }
@@ -144,45 +154,68 @@ export const paintScene = {
     s.fx = s.fx.filter(f => f.t < 0.25);
     if (s.regFlash) { s.regFlash.t -= dt; if (s.regFlash.t <= 0) s.regFlash = null; }
 
-    // heat cools while you pace yourself; bursts add it back
-    s.heat = Math.max(0, s.heat - 1.6 * dt);
-
-    // KWIK early warning
-    if (!s.warned && s.heat >= 82 && G.run.partner.tag === 'KWIK 12' && !s.cop) {
-      s.warned = true;
-      sfxWhistle();
-      say(s, 'KWIK WHISTLES: 5-0 COMING!');
+    // ---- trouble scheduler ----
+    if (!s.cop && !s.dog && s.nextTrouble !== Infinity) {
+      s.nextTrouble -= dt;
+      if (!s.warned && s.nextTrouble < 1.6 && G.run.partner.tag === 'KWIK 12') {
+        s.warned = true;
+        sfxWhistle();
+        say(s, 'KWIK WHISTLES — SOMETHING\'S COMING!');
+      }
+      if (s.nextTrouble <= 0) {
+        s.warned = false;
+        const dogChance = Math.min(0.65, 0.12 + s.lvl * 0.07 + s.elapsed / 160 +
+          (s.spot.kind === 'train' ? 0.1 : 0));
+        if (s.rng() < dogChance) {
+          const dir = s.rng() < 0.5 ? 1 : -1;
+          s.dog = { x: dir === 1 ? -20 : W + 20, dir, bit: false };
+          sfxBark();
+          say(s, 'DOG!! [SPACE] GET UP ON THE DUMPSTER!');
+        } else {
+          s.cop = { x: W + 10, stay: s.copStay, exposeT: 0, leaving: false };
+          sfxSiren();
+          say(s, '5-0!! HIDE!! [HOLD SPACE]');
+        }
+      }
     }
 
-    // cop spawn
-    if (s.heat >= 100 && !s.cop) {
-      s.cop = { x: W + 10, stay: s.copStay, exposeT: 0, leaving: false };
-      sfxSiren();
-      say(s, '5-0!! HIDE!! [HOLD SPACE]');
-    }
+    // ---- cop ----
     if (s.cop) {
       const c = s.cop;
       if (!c.leaving) {
-        if (c.x > 240) c.x -= 40 * dt;
+        if (c.x > 240) c.x -= (40 + s.lvl * 2.5) * dt;
         else {
           c.stay -= dt;
           if (c.stay <= 0) { c.leaving = true; say(s, 'HE\'S GONE. BACK TO WORK.'); }
         }
-        // exposure check once he's close
         if (c.x < 290) {
           if (s.hiding) c.exposeT = 0;
           else {
             c.exposeT += dt;
-            if (c.exposeT > s.bustGrace) return bust(G, this);
+            if (c.exposeT > s.bustGrace) return bust(G, this, 'cop');
           }
         }
       } else {
         c.x += 55 * dt;
-        if (c.x > W + 12) { s.cop = null; s.warned = false; s.heat = 45; }
+        if (c.x > W + 12) { s.cop = null; s.nextTrouble = this.troubleInterval(s, G); }
       }
     }
 
-    // pedestrians
+    // ---- yard dog: fast, no mercy, hop the dumpster ----
+    if (s.dog) {
+      const d = s.dog;
+      const speed = 55 + s.lvl * 4 + s.spot.danger * 3;
+      d.x += d.dir * speed * dt;
+      const kidX = Math.max(30, Math.min(280, G.mouse.x - 8)) + 8;
+      if (!d.bit && !s.hiding && Math.abs(d.x + 9 - kidX) < 11) {
+        d.bit = true;
+        return bust(G, this, 'dog');
+      }
+      if (Math.abs(d.x - W / 2) < 4) sfxBark();
+      if (d.x < -24 || d.x > W + 24) { s.dog = null; s.nextTrouble = this.troubleInterval(s, G); }
+    }
+
+    // ---- pedestrians: just the neighborhood, watching ----
     s.pedTimer -= dt;
     if (s.pedTimer <= 0 && !s.ped && s.spot.kind !== 'gallery') {
       const dir = s.rng() < 0.5 ? 1 : -1;
@@ -191,16 +224,14 @@ export const paintScene = {
         line: pick(s.rng, PED_LINES), spoke: false,
         sprite: makePedestrian(irange(s.rng, 0, 1e9)),
       };
-      s.pedTimer = 8 + s.rng() * 8;
+      s.pedTimer = 9 + s.rng() * 9;
     }
     if (s.ped) {
       const p = s.ped;
       p.x += p.dir * 26 * dt;
       if (!p.spoke && Math.abs(p.x - W / 2) < 30) {
         p.spoke = true;
-        say(s, `"${p.line}"`);
-        if (p.line.includes('COPS') || p.line.includes('HOODLUMS')) s.heat += 14;
-        else s.heat += 5;
+        if (s.msgT <= 0) say(s, `"${p.line}"`);
       }
       if (p.x < -16 || p.x > W + 16) s.ped = null;
     }
@@ -214,7 +245,6 @@ export const paintScene = {
       if (e.key === 'x' || e.key === 'X') burst(G, s, G.mouse.x, G.mouse.y);
       const n = parseInt(e.key, 10);
       if (n >= 1 && n <= s.bag.length) s.selected = n - 1;
-      if (e.key === 'Enter') finishPiece(G, this);
     } else if (e.key === ' ') {
       s.hiding = false;
     }
@@ -248,7 +278,7 @@ export const paintScene = {
     // pulse the region the selected can belongs to
     const sel = s.bag[s.selected];
     const rid = Object.keys(s.piece.palette).find(r => s.piece.palette[r].id === sel.id);
-    if (rid) {
+    if (rid && !s.regDone[rid]) {
       ctx.globalAlpha = 0.10 + 0.08 * Math.sin(s.pulse);
       ctx.drawImage(s.masks[rid], PX, PY);
       ctx.globalAlpha = 1;
@@ -314,14 +344,29 @@ export const paintScene = {
         text(ctx, 'HIDE!', Math.round(s.cop.x) - 8, 128, flash ? '#ff3030' : '#ffe040');
       }
     }
+    if (s.dog) {
+      const d = s.dog;
+      ctx.save();
+      if (d.dir === 1) { // sprite faces left; flip when running right
+        ctx.translate(Math.round(d.x) + 18, 152);
+        ctx.scale(-1, 1);
+        ctx.drawImage(s.dogSprite, 0, 0);
+      } else {
+        ctx.drawImage(s.dogSprite, Math.round(d.x), 152);
+      }
+      ctx.restore();
+      const flash = Math.sin(s.pulse * 3) > 0;
+      text(ctx, 'GRRR', Math.round(d.x), 142, flash ? '#ff3030' : '#ffe040');
+    }
 
-    // HUD
+    // HUD — just the night, the piece, and your strikes
     const frac = s.coveredCount / s.totalRegion;
-    text(ctx, `${Math.ceil(s.timeLeft)}`, 8, 4, s.timeLeft < 15 ? '#ff4040' : '#fff', 2);
-    meter(ctx, 56, 6, 56, 7, s.heat / 100, s.heat > 80 ? '#ff3030' : '#ff8830');
-    text(ctx, 'HEAT', 58, 14, '#888');
-    meter(ctx, 122, 6, 56, 7, frac, frac >= 0.6 ? '#40cc50' : '#cccc40');
+    text(ctx, `NIGHT ${s.lvl + 1}`, 8, 5, '#fff');
+    meter(ctx, 122, 6, 56, 7, frac, frac >= 0.999 ? '#40cc50' : '#cccc40');
     text(ctx, `PIECE ${Math.floor(frac * 100)}%`, 124, 14, '#888');
+    for (let i = 0; i < 3; i++) {
+      text(ctx, 'X', 8 + i * 9, 14, i < run.strikes ? '#ff3030' : '#333340');
+    }
     drawCrewCorner(G, ctx);
 
     // bag of cans
@@ -341,23 +386,22 @@ export const paintScene = {
       rect(ctx, cx + 5, 166, 4, 1, '#aab0ba');
       text(ctx, String(i + 1), cx + 17, 170, isSel ? '#fff' : '#777');
     }
-    // shared paint meter, under the clock
-    meter(ctx, 8, 24, 44, 6, s.paint / s.paintCap, '#40a0e0');
-    text(ctx, 'PAINT', 8, 31, '#888');
 
     if (s.msgT > 0) centerText(ctx, s.msg, 148, '#ffe040');
 
+    if (s.done) {
+      centerText(ctx, 'BURNED IT!', 80, '#40e050', 2);
+    }
+
     if (s.busted) {
       rect(ctx, 0, 70, W, 50, '#600');
-      centerText(ctx, 'BUSTED!', 78, '#fff', 2);
+      centerText(ctx, s.bustedBy === 'dog' ? 'DOG GOT YOU!' : 'BUSTED!', 78, '#fff', 2);
       centerText(ctx, `STRIKE ${run.strikes + 1} OF 3 — PIECE LOST`, 104, '#fcc');
     }
   },
 };
 
 function say(s, msg) { s.msg = msg; s.msgT = 3.5; }
-
-const REGION_NAMES = { 1: 'FILL A', 2: 'FILL B', 3: 'LINES', 4: 'SHADOW', 5: 'CLOUD' };
 
 // One key press = one burst at the cursor. Paint ONLY lands on pixels
 // whose region wants the selected color — it is impossible to paint
@@ -367,7 +411,6 @@ function burst(G, s, mx, my) {
   const px = Math.round(mx - PX), py = Math.round(my - PY);
   const w = s.piece.w, h = s.piece.h, r = s.burstR;
   if (px < -r || px >= w + r || py < -r || py >= h + r) return; // not at the wall
-  if (s.paint <= 0) { say(s, 'OUT OF PAINT.'); return; }
 
   const color = s.bag[s.selected];
   const ctx = s.paintCv[1];
@@ -382,13 +425,11 @@ function burst(G, s, mx, my) {
       const rid = s.piece.regions[i];
       if (!rid || s.piece.palette[rid].id !== color.id) continue; // wrong area: nothing sticks
       if (s.covered[i]) continue;
-      if (s.paint <= 0) break;
-      s.paint -= s.cost;
       ctx.fillRect(x, y, 1, 1);
       s.covered[i] = 1;
       s.coveredCount++;
       s.regCov[rid]++;
-      if (!s.regDone[rid] && s.regCov[rid] >= s.piece.counts[rid] * 0.97) {
+      if (!s.regDone[rid] && s.regCov[rid] >= s.piece.counts[rid] * s.regDoneFrac) {
         s.regDone[rid] = true;
         doneRid = rid;
       }
@@ -398,66 +439,46 @@ function burst(G, s, mx, my) {
 
   if (hit > 0) {
     s.sprayT = 0.14;
-    s.heat = Math.min(110, s.heat + s.burstHeat);
     s.fx.push({ x: mx, y: my, t: 0 });
     if (doneRid) {
       sfxPop();
       s.regFlash = { rid: doneRid, t: 0.5 };
       say(s, `${REGION_NAMES[doneRid]} DONE!`);
     }
-    if (!s.readyTold && s.coveredCount / s.totalRegion >= 0.6) {
-      s.readyTold = true;
-      say(s, 'IT READS! [ENTER] TO BOUNCE, OR KEEP BURNING');
+    if ([1, 2, 3, 4, 5].every(rd => s.regDone[rd])) {
+      s.done = true;
+      s.doneT = 0;
+      sfxPop();
     }
   } else {
-    s.heat = Math.min(110, s.heat + 0.4); // you still rattled the can
     if (s.msgT <= 0) say(s, 'NOT HERE — CHECK THE SKETCH FOR THIS CAN');
     sfxTick();
   }
 }
 
-function bust(G, scene) {
+function bust(G, scene, by) {
   const s = scene.s;
   s.busted = true;
   s.bustedT = 0;
+  s.bustedBy = by;
   sfxSpray(false);
   sfxBust();
 }
 
-function finishPiece(G, scene) {
-  const s = scene.s;
-  if (s.done || s.busted) return;
-  s.done = true;
-  sfxSpray(false);
-  const frac = s.coveredCount / s.totalRegion;
-  G.mission = {
-    coverage: frac,
-    paintCv: s.paintCv[0],
-    spot: s.spot,
-  };
-  G.go('result');
-}
-
 export const resultScene = {
   enter(G) {
-    const run = G.run, m = G.mission;
-    let quality = m.coverage;
-    if (run.partner.tag === 'LADY VEX') quality = Math.min(1, quality + 0.1);
-    const flopped = m.coverage < 0.6;
-    if (flopped) quality *= 0.4;
-
+    const run = G.run;
     // compose the finished wall for the polaroid
     const [comp, cc] = makeCanvas(264, 106);
-    drawSurface(cc, 0, 0, 264, 106, m.spot.kind, makeRng(7));
-    cc.drawImage(m.paintCv, PX - 28, PY - 26);
+    drawSurface(cc, 0, 0, 264, 106, run.spot.kind, makeRng(7));
+    cc.drawImage(G.mission.paintCv, PX - 28, PY - 26);
     const polaroid = makePolaroid(comp, 0, 0, 264, 106);
     const sketch = renderSketch(run.piece);
-
-    const entry = addPiece(run, {
-      spotId: m.spot.id, quality,
+    addPiece(run, {
+      spotId: run.spot.id,
       sketch, polaroid, partnerTag: run.partner.tag,
     });
-    this.s = { comp, polaroid, entry, flopped, quality, t: 0 };
+    this.s = { comp, polaroid, t: 0 };
     sfxPop();
   },
 
@@ -466,7 +487,6 @@ export const resultScene = {
   key(G, e) {
     if (e.type === 'down' && e.key === 'Enter' && this.s.t > 1) {
       G.bookReturn = 'intermission';
-      G.pendingAdvance = true;
       G.go('book');
     }
   },
@@ -480,13 +500,8 @@ export const resultScene = {
     ctx.drawImage(s.polaroid, 236, py);
     text(ctx, 'CLICK.', 244, py + 60, '#888');
 
-    if (s.flopped) {
-      centerText(ctx, 'TIME. IT\'S A TOY PIECE...', 140, '#ff8040', 1);
-      centerText(ctx, 'BARELY WORTH THE PAINT.', 152, '#ff8040', 1);
-    } else {
-      centerText(ctx, 'UP!', 136, '#40e050', 2);
-      centerText(ctx, `QUALITY ${Math.floor(s.quality * 100)}% — EARNS ${pointsPerDay(run, s.entry)}/DAY WHILE IT RUNS`, 158, '#ccc');
-    }
+    centerText(ctx, 'UP!', 136, '#40e050', 2);
+    centerText(ctx, `NIGHT ${level(run)} CLEARED — ${level(run)} BURNER${level(run) === 1 ? '' : 'S'} UP`, 158, '#ccc');
     if (s.t > 1) centerText(ctx, '[ENTER] THE BOOK', 182, '#ffe040');
   },
 };
