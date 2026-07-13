@@ -690,14 +690,16 @@ const demoScene = {
     }
     if (found < 0) return;
     this.cursor = (found + 11) % total;
-    G.mouse.x = 72 + (found % s.piece.w);
-    G.mouse.y = 34 + Math.floor(found / s.piece.w);
+    // walk to it, then spray
+    const tx = 72 + (found % s.piece.w) - 10;
+    const dx = tx - s.kidX;
+    s.moveR = dx > 4; s.moveL = dx < -4;
     const want = s.piece.palette[reg].id;
     const canIdx = s.bag.findIndex(c2 => c2.id === want);
     if (canIdx >= 0) s.selected = canIdx;
     this.burstT -= dt;
-    if (this.burstT <= 0) {
-      this.burstT = 0.22;
+    if (Math.abs(dx) < 24 && this.burstT <= 0) {
+      this.burstT = 0.25;
       paintScene.key(G, { type: 'down', key: 'x' });
       paintScene.key(G, { type: 'up', key: 'x' });
     }

@@ -24,7 +24,7 @@ setInterval(() => {
   else if (G.sceneName === 'map') key('Enter');
   else if (G.sceneName === 'doors') key('Enter');
   else if (G.sceneName === 'paint' && s) {
-    mouse(192, 80); // kid stands mid-wall
+    s.kidX = 182; // kid parked mid-wall
     if (phase === 0) { // test 1: powered kid takes a dog hit -> loses flow, keeps hearts
       G.scene.spawnEnemy(s, 'dog', 1);
       phase = 1; console.log(`TEST1: dog released. powered=${s.powered} hearts=${G.run.hearts}`);
@@ -37,6 +37,14 @@ setInterval(() => {
     } else if (phase === 3 && s.enemies.length === 0) {
       console.log(`TEST2 RESULT: hearts=${G.run.hearts} (want 2)`);
       phase = 4;
+    } else if (phase === 4) { // test 3: hidden behind a dumpster = untouchable
+      s.kidX = 216; // by the dumpster at 212
+      key('h');
+      G.scene.spawnEnemy(s, 'dog', 1);
+      phase = 5; console.log(`TEST3: dog released, kid hidden=${s.hidden}`);
+    } else if (phase === 5 && s.enemies.length === 0) {
+      console.log(`TEST3 RESULT: hearts=${G.run.hearts} hidden=${s.hidden} (want 2/true)`);
+      phase = 6;
     }
   }
 }, 100);

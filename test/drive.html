@@ -132,19 +132,17 @@ function paintTick(G, s) {
   if (canIdx >= 0 && s.selected !== canIdx) { key(String(canIdx + 1)); return; }
 
   const total = piece.w * piece.h;
-  for (let n = 0; n < 6 && !s.regDone[reg]; n++) {
-    let found = -1, i = plan.cursor;
-    for (let scanned = 0; scanned < total; scanned++, i = (i + 7) % total) {
-      if (piece.regions[i] === reg && !s.covered[i]) { found = i; break; }
-    }
-    if (found < 0) break;
-    plan.cursor = (found + 7) % total;
-    mouse('mousemove', PXo + (found % w), PYo + ((found / w) | 0));
-    G.step(0.01);
-    key('x');
-    G.step(0.02);
-    if (s.cop || s.dog) break;
+  let found = -1, i = plan.cursor;
+  for (let scanned = 0; scanned < total; scanned++, i = (i + 7) % total) {
+    if (piece.regions[i] === reg && !s.covered[i]) { found = i; break; }
   }
+  if (found < 0) return;
+  plan.cursor = (found + 7) % total;
+  // walk into range, then spray (the smoke test may teleport its feet)
+  s.kidX = PXo + (found % w) - 10;
+  G.step(0.01);
+  key('x');
+  G.step(0.02);
 }
 </script>
 </body>

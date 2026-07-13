@@ -2,13 +2,11 @@
 title: Mario-style play - contact enemies, jumping, power states, gear pickups, hearts
 type: feature
 created: "2026-07-13T20:42:01Z"
-modified: "2026-07-13T20:47:29Z"
+modified: "2026-07-13T20:56:14Z"
 author: Matthew Reider
-status: delivered
+status: started
 estimate: "8"
 started: "2026-07-13T20:42:01Z"
-finished: "2026-07-13T20:47:29Z"
-delivered: "2026-07-13T20:47:29Z"
 ---
 
 ## Problem statement
@@ -22,3 +20,7 @@ Replace hide/vision mechanics entirely: enemies[] walk/run on the sidewalk plane
 ## Comments
 
 ## Attachments
+
+## Rejection notes
+
+- 2026-07-13: PM: jump arc does not clear the cop sprite (apex 23px vs 30px cop) so jumps still register/read as hits; wants multiple dumpsters along the board with H-to-hide near one; also keyboard-only controls (delivered mid-review).
