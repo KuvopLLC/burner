@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BURNER — headless drive test</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0a0a0f;
+    display: flex; align-items: center; justify-content: center; }
+  canvas { image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<canvas id="screen" width="320" height="200"></canvas>
+<script type="module">
+import '../src/main.js';
+
+// Adaptive driver: reads window.BURNER and plays one full loop —
+// name, skills, tumbler, sketch, map, paint (properly: right can per
+// region, hides from cops), result, book, rack run. Headless rAF stalls
+// under --virtual-time-budget, so it pumps G.step() itself. Scene
+// transitions are console.logged so you know where a budget lands.
+
+const cv = document.getElementById('screen');
+const PXo = 40, PYo = 34; // piece offset in the paint scene (paint.js)
+
+function key(k, type = 'both') {
+  if (type !== 'up') window.dispatchEvent(new KeyboardEvent('keydown', { key: k }));
+  if (type !== 'down') window.dispatchEvent(new KeyboardEvent('keyup', { key: k }));
+}
+function mouse(type, gx, gy) {
+  const b = cv.getBoundingClientRect();
+  const s = b.width / 320;
+  cv.dispatchEvent(new MouseEvent(type, {
+    clientX: b.left + gx * s, clientY: b.top + gy * s, bubbles: true,
+  }));
+}
+
+let lastScene = '', sceneAt = 0, now = 0;
+let typed = false, hiding = false, rackDone = false, done = false;
+let plan = null, copSeen = false;
+
+setInterval(() => {
+  const G = window.BURNER;
+  if (!G || done) return;
+  now += 100;
+  G.step(0.1); // headless rAF stalls under virtual time; pump manually
+  if (G.sceneName !== lastScene) {
+    lastScene = G.sceneName;
+    sceneAt = now;
+    console.log(`SCENE ${lastScene} @ ${now}`);
+  }
+  const el = now - sceneAt;
+  const sc = G.scene;
+
+  switch (G.sceneName) {
+    case 'title':
+      if (el >= 300) key('Enter');
+      break;
+    case 'name':
+      if (!typed) { typed = true; for (const c of 'ZEKE') key(c); }
+      if (el >= 400) key('Enter');
+      break;
+    case 'skills':
+      if (sc.left > 0) { key('ArrowRight'); if (sc.left % 2) key('ArrowDown'); }
+      else key('Enter');
+      break;
+    case 'partner':
+      if (el > 4000 || (sc.locked && sc.lockT > 0.7)) key('Enter');
+      break;
+    case 'sketch':
+      if (sc.t > 1.1) key('Enter');
+      break;
+    case 'map':
+      if (el >= 300) key('Enter');
+      break;
+    case 'paint':
+      paintTick(G, sc.s);
+      break;
+    case 'result':
+      if (sc.s.t > 1.1) {
+        console.log(`RESULT quality=${Math.round(sc.s.quality * 100)}% flopped=${sc.s.flopped}`);
+        key('Enter');
+      }
+      break;
+    case 'book':
+      if (el >= 600) key('Enter');
+      break;
+    case 'intermission':
+      if (rackDone) { done = true; console.log('DRIVE DONE @ ' + now); break; }
+      if (el >= 400) key('r');
+      break;
+    case 'rack':
+      if (sc.stage === 'choose' && el >= 300) key('Enter');
+      else if (sc.stage === 'steal') {
+        const inZone = sc.marker >= sc.zoneX + 2 && sc.marker <= sc.zoneX + sc.zoneW - 2;
+        if (inZone && sc.lookAway) key(' ');
+      } else if (sc.stage === 'done' && el >= 500) { rackDone = true; key('Enter'); }
+      break;
+    case 'gameover':
+      done = true;
+      console.log('DRIVE DONE (GAMEOVER) @ ' + now);
+      break;
+  }
+}, 100);
+
+// Paint like a writer: one region at a time (one can switch each),
+// stroking that region's runs row by row, hiding when the cops roll up.
+function paintTick(G, s) {
+  if (!s || s.busted || s.done) return;
+  const piece = G.run.piece, w = piece.w;
+
+  if (s.cop && !s.cop.leaving) {
+    if (!hiding) {
+      hiding = true;
+      if (!copSeen) { copSeen = true; console.log(`COP @ ${now}`); }
+      mouse('mouseup', 0, 0);
+      key(' ', 'down');
+    }
+    return;
+  }
+  if (hiding) { hiding = false; key(' ', 'up'); }
+
+  if (!plan) {
+    // region-major run list: cloud, shadow, fills, outline last (it
+    // borders everything, so it repairs stray bleed)
+    const runs = [];
+    for (const reg of [5, 4, 1, 2, 3]) {
+      for (let y = 2; y < piece.h; y += 4) {
+        for (let x = 0; x < w; x++) {
+          if (piece.regions[y * w + x] !== reg) continue;
+          let xe = x;
+          while (xe < w && piece.regions[y * w + xe] === reg) xe++;
+          runs.push({ reg, y, x0: x, x1: xe - 1 });
+          x = xe;
+        }
+      }
+    }
+    plan = { runs, i: 0 };
+    console.log(`PAINT PLAN: ${runs.length} strokes`);
+  }
+  if (plan.i >= plan.runs.length) {
+    console.log(`PAINT SWEEP DONE @ ${now}, coverage=${Math.round(100 * s.coveredCount / s.totalRegion)}%`);
+    mouse('mouseup', 0, 0);
+    key('Enter');
+    return;
+  }
+  for (let n = 0; n < 10 && plan.i < plan.runs.length; n++) {
+    const r = plan.runs[plan.i];
+    const want = piece.palette[r.reg].id;
+    const canIdx = s.bag.findIndex(c => c.id === want);
+    if (canIdx >= 0 && s.selected !== canIdx) { key(String(canIdx + 1)); break; }
+    mouse('mouseup', 0, 0);
+    mouse('mousemove', PXo + r.x0, PYo + r.y);
+    G.step(0.016);
+    mouse('mousedown', PXo + r.x0, PYo + r.y);
+    G.step(0.016);
+    mouse('mousemove', PXo + r.x1, PYo + r.y);
+    G.step(0.016);
+    plan.i++;
+    if (s.cop) break; // heat maxed mid-batch
+  }
+}
+</script>
+</body>
+</html>
