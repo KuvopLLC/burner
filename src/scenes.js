@@ -41,13 +41,20 @@ function drawTwinkles(ctx, t, seed, count, y0, y1) {
 let hiTop = 0;
 function refreshHi() { hiTop = (loadHighScores()[0] || {}).piecesUp || 0; }
 
+function colText(ctx, str, cx, y, color) {
+  stext(ctx, str, cx - textWidth(str) / 2, y, color);
+}
+
 function drawHeader(G, ctx, t) {
   const cur = G.run ? G.run.pieces.length : 0;
-  if (!G.run || Math.sin(t * 5) > -0.4) stext(ctx, '1UP', 24, 4, '#ff4040');
-  stext(ctx, String(cur), 30, 15, '#fff');
-  scenter(ctx, 'HIGH SCORE', 4, '#ff4040');
-  const hs = String(Math.max(hiTop, cur));
-  stext(ctx, hs, (W - hs.length * 6) / 2, 15, '#fff');
+  if (!G.run || Math.sin(t * 5) > -0.4) colText(ctx, '1UP', 56, 4, '#ff4040');
+  colText(ctx, String(cur), 56, 15, '#fff');
+  colText(ctx, 'HIGH SCORE', W / 2, 4, '#ff4040');
+  colText(ctx, String(Math.max(hiTop, cur)), W / 2, 15, '#fff');
+  if (G.run) {
+    colText(ctx, 'NIGHT', W - 56, 4, '#ff4040');
+    colText(ctx, String(cur + 1), W - 56, 15, '#fff');
+  }
 }
 
 // ---- TITLE ----------------------------------------------------------------
@@ -60,14 +67,14 @@ const titleScene = {
     const rng = makeRng(99);
     this.drips = [];
     for (let i = 0; i < 14; i++) {
-      this.drips.push({ x: 108 + rng() * 168, y: 72, len: 4 + rng() * 14, sp: 3 + rng() * 6 });
+      this.drips.push({ x: 124 + rng() * 136, y: 72, len: 4 + rng() * 14, sp: 3 + rng() * 6 });
     }
     // a skyline for the logo to burn over
     this.bldgs = [];
     let bx = 0;
     while (bx < W) {
       const bw = 18 + Math.floor(rng() * 26);
-      this.bldgs.push({ x: bx, w: bw, h: 10 + Math.floor(rng() * 16), seed: Math.floor(rng() * 1e9) });
+      this.bldgs.push({ x: bx, w: bw, h: 6 + Math.floor(rng() * 12), seed: Math.floor(rng() * 1e9) });
       bx += bw + 2;
     }
     this.trainX = -180;
@@ -109,7 +116,6 @@ const titleScene = {
       rect(ctx, cx + (carN === 0 ? 72 : -1), 166, 2, 2, '#ffefc0');
     }
     drawHeader(G, ctx, this.t);
-    scenter(ctx, 'KUVOP PRESENTS', 30, '#9a9aa8');
     centerText(ctx, 'BURNER', 44, '#ff3060', 4);
     // glint sweeping the logo
     const sweep = (this.t % 4) / 4 * (W - 120) + 60;
@@ -123,25 +129,22 @@ const titleScene = {
     for (const d of this.drips) ctx.fillRect(Math.round(d.x), 72, 2, Math.round(d.y - 72) + 2);
     scenter(ctx, 'GET UP. STAY UP.', 102, '#39c8e0');
 
-    // attract rotation: the opposition / the kings
+    // attract rotation: the opposition table / the kings — one tidy
+    // centered column, Galaga style
     const phase = this.hs.length ? Math.floor(this.t / 5) % 2 : 0;
     if (phase === 0) {
-      scenter(ctx, '- KNOW THE OPPOSITION -', 118, '#ff4040');
-      ctx.drawImage(this.copS, 108, 130);
-      stext(ctx, 'THE 5-0', 136, 134, '#fff');
-      stext(ctx, '=1 STRIKE', 136, 146, '#9a9aa8');
-      ctx.drawImage(this.dogS, 216, 142);
-      stext(ctx, 'YARD DOG', 246, 134, '#fff');
-      stext(ctx, '=1 BITE', 246, 146, '#9a9aa8');
+      ctx.drawImage(this.copS, 151, 104);
+      stext(ctx, 'THE 5-0', 185, 116, '#fff');
+      ctx.drawImage(this.dogS, 149, 140);
+      stext(ctx, 'YARD DOG', 185, 145, '#fff');
     } else {
-      scenter(ctx, '- KINGS OF THE LINE -', 118, '#ff4040');
       this.hs.slice(0, 3).forEach((h, i) => {
-        const line = `${i + 1}. ${h.tag.padEnd(10, '.')}${String(h.piecesUp).padStart(3, '.')} UP`;
-        scenter(ctx, line, 132 + i * 12, i === 0 ? '#ffe040' : '#fff');
+        const line = `${h.tag.padEnd(10, '.')}${String(h.piecesUp).padStart(3, '.')} UP`;
+        scenter(ctx, line, 120 + i * 14, i === 0 ? '#ffe040' : '#fff');
       });
     }
-    if (Math.sin(this.t * 4) > -0.2) scenter(ctx, 'PRESS [ENTER] TO WRITE', 186, '#ffe040');
-    scenter(ctx, '© 1986 KUVOP', 204, '#666');
+    if (Math.sin(this.t * 4) > -0.2) scenter(ctx, 'PRESS ENTER', 188, '#ffe040');
+    scenter(ctx, '© 1986 KUVOP', 205, '#666');
   },
 };
 
@@ -188,10 +191,9 @@ const nameScene = {
       // how it's going to look on a wall
       ctx.drawImage(this.preview, 72, 90, 240, 90);
     } else {
-      scenter(ctx, 'A-Z 0-9', 126, '#33334a', 2);
+      scenter(ctx, '. . .', 126, '#33334a', 2);
     }
-    scenter(ctx, '2-8 LETTERS. SHORT NAMES GO UP FASTER.', 190, '#39c8e0');
-    if (this.tag.length >= 2 && Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] THAT\'S ME', 204, '#ffe040');
+    if (this.tag.length >= 2 && Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] THAT\'S ME', 198, '#ffe040');
   },
 };
 
@@ -239,10 +241,10 @@ const partnerScene = {
     const run = G.run;
     rect(ctx, 0, 0, W, H, '#0c0c1e');
     drawHeader(G, ctx, this.animT || 0);
-    scenter(ctx, 'TONIGHT YOU\'RE PAINTING WITH...', 26, '#39c8e0');
+    scenter(ctx, 'TONIGHT\'S PARTNER', 26, '#ff4040');
 
-    // the reel window
-    const rw = 150, rh = 70, rx = 36, ry = 38;
+    // the reel window, dead center
+    const rw = 150, rh = 70, rx = (W - 150) / 2, ry = 38;
     panel(ctx, rx, ry, rw, rh, '#08080e', this.locked ? '#ffe040' : '#3a3a52');
     ctx.save();
     ctx.beginPath();
@@ -257,27 +259,25 @@ const partnerScene = {
       text(ctx, p.tag, rx + 34, yOff + 12, k === 0 || this.locked ? '#fff' : '#666');
     }
     ctx.restore();
-    // pointer
-    text(ctx, '>', rx - 10, ry + rh / 2 - 6, '#ffe040');
+    // pointers, both sides
+    text(ctx, '>', rx - 12, ry + rh / 2 - 6, '#ffe040');
+    text(ctx, '<', rx + rw + 7, ry + rh / 2 - 6, '#ffe040');
 
     if (this.locked) {
       const p = run.partner;
       if (this.lockT < 0.3) frame(ctx, rx - 2, ry - 2, rw + 4, rh + 4, '#fff'); // POP flash
-      scenter(ctx, `*POP* ${run.tag} + ${p.tag}`, 116, '#ffe040', 1);
       panel(ctx, 36, 128, 160, 76, '#101018', '#3a3a52');
       text(ctx, p.style, 42, 133, '#ff3060');
       const bioEnd = wrapText(ctx, p.bio, 42, 146, 148, '#ccc');
       wrapText(ctx, 'PERK: ' + p.perk, 42, bioEnd + 3, 148, '#40e050');
       // their art
-      text(ctx, 'THEIR LAST PIECE:', 212, 124, '#888');
       if (this.art) {
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(this.art, 212, 136, 136, 51);
-        frame(ctx, 212, 136, 136, 51, '#3a3a52');
+        ctx.drawImage(this.art, 212, 140, 136, 51);
+        frame(ctx, 211, 139, 138, 53, '#3a3a52');
       }
-      if (this.lockT > 0.6 && Math.sin(this.lockT * 4) > -0.3) scenter(ctx, '[ENTER] SKETCH THE PIECE', 206, '#ffe040');
+      if (this.lockT > 0.6 && Math.sin(this.lockT * 4) > -0.3) scenter(ctx, '[ENTER] SKETCH', 206, '#ffe040');
     } else {
-      if (Math.sin((this.animT || 0) * 5) > -0.3) scenter(ctx, 'THE TUMBLER SPINS...', 126, '#ffe040');
     }
   },
 };
@@ -316,10 +316,8 @@ const sketchScene = {
     // the black book, open
     panel(ctx, 56, 20, 272, 162, '#efe9d8', '#8a7a5a');
     rect(ctx, 190, 22, 2, 158, '#c8bfa4'); // spine
-    text(ctx, 'THE BLACK BOOK', 66, 28, '#6a5a3a');
-    text(ctx, `PIECE NO. ${level(run) + 1}`, 66, 42, '#6a5a3a');
-    text(ctx, `W/ ${run.partner.tag}`, 66, 56, '#a05030');
-    text(ctx, `"${run.piece.word}"`, 132, 56, '#6a5a3a');
+    text(ctx, `PIECE NO. ${level(run) + 1}`, 66, 30, '#6a5a3a');
+    text(ctx, `"${run.piece.word}" W/ ${run.partner.tag}`, 66, 46, '#a05030');
     // sketch reveals left to right
     const reveal = Math.min(1, this.t / 1.6) * run.piece.w;
     ctx.save();
@@ -327,16 +325,15 @@ const sketchScene = {
     ctx.drawImage(this.sketch, 66, 74, run.piece.w * 0.48, run.piece.h * 0.48);
     ctx.restore();
     // colors needed
-    text(ctx, 'CANS WE NEED:', 202, 30, '#6a5a3a');
+    text(ctx, 'THE CANS:', 202, 30, '#6a5a3a');
     const regionNames = { 1: 'FILL A', 2: 'FILL B', 3: 'LINES', 4: 'SHADOW', 5: 'CLOUD' };
     [1, 2, 3, 4, 5].forEach((r, i) => {
       const c = run.piece.palette[r];
       rect(ctx, 204, 46 + i * 15, 9, 10, c.hex);
       text(ctx, c.name, 218, 48 + i * 15, '#4a4034');
-      text(ctx, regionNames[r], 288, 48 + i * 15, '#8a7a5a');
     });
     drawCrewCorner(G, ctx);
-    if (this.t > 1) scenter(ctx, '[ENTER] PICK THE SPOT', 196, '#ffe040');
+    if (this.t > 1 && Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] THE MAP', 196, '#ffe040');
   },
 };
 
@@ -392,12 +389,9 @@ const mapScene = {
     const s = this.spots[this.sel];
     rect(ctx, 0, MAP_H, W, H - MAP_H, '#0d0d15');
     rect(ctx, 0, MAP_H, W, 1, '#32324a');
-    text(ctx, s.name + (s.line ? ` (${s.line})` : ''), 8, 182, '#fff');
-    text(ctx, 'DANGER ' + (s.danger ? '★'.repeat(s.danger) : 'NONE'), 268, 182, '#ff5030');
-    text(ctx, s.kind === 'train' ? 'THE WHOLE CITY SEES A TRAIN. DOGS IN THE YARD.'
-      : s.kind === 'gallery' ? 'SAFE AND WARM. NOBODY REAL SEES IT.'
-      : 'A GOOD WALL. WATCH THE STREET.', 8, 198, '#8a8a96');
-    if (Math.sin(this.t * 4) > -0.3) text(ctx, '[ENTER] GO', 316, 198, '#ffe040');
+    text(ctx, s.name + (s.line ? ` (${s.line})` : ''), 8, 190, '#fff');
+    text(ctx, 'DANGER ' + (s.danger ? '★'.repeat(s.danger) : 'NONE'), 232, 190, '#ff5030');
+    if (Math.sin(this.t * 4) > -0.3) text(ctx, '[ENTER] GO', 316, 190, '#ffe040');
     drawCrewCorner(G, ctx);
   },
 };
@@ -434,8 +428,8 @@ const bookScene = {
     if (!run.pieces.length) centerText(ctx, 'NOTHING IN THE BOOK YET', 88, '#8a7a5a');
     text(ctx, `PAGE ${this.page + 1}`, 182, 166, '#8a7a5a');
     const n = run.pieces.length;
-    scenter(ctx, `${n} BURNER${n === 1 ? '' : 'S'} UP   STRIKES ${run.strikes}/3`, 186, '#ffe040');
-    scenter(ctx, 'ARROWS: FLIP   [ENTER] CLOSE THE BOOK', 202, '#9a9aa8');
+    scenter(ctx, `${n} UP · STRIKES ${run.strikes}/3`, 186, '#ffe040');
+    scenter(ctx, '< > FLIP · [ENTER] CLOSE', 202, '#9a9aa8');
   },
 };
 
@@ -488,14 +482,13 @@ const intermissionScene = {
 
     drawHeader(G, ctx, this.t);
     const n = level(run);
-    scenter(ctx, `NIGHT ${n + 1}`, 26, '#ffe040', 2);
-    scenter(ctx, `${n} BURNER${n === 1 ? '' : 'S'} UP`, 52, '#fff');
-    scenter(ctx, `STRIKES ${run.strikes}/3`, 66, run.strikes ? '#ff4040' : '#9a9aa8');
-    scenter(ctx, n >= 3 ? 'THE STREETS KNOW YOUR NAME. SO DO THE COPS.'
-      : n >= 1 ? 'WORD IS GETTING AROUND.'
-      : 'THE CITY DOESN\'T KNOW YOU YET.', 82, '#39c8e0');
-    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] PAINT TONIGHT', 128, '#ffe040');
-    scenter(ctx, '[B] FLIP THROUGH THE BOOK', 144, '#c0a060');
+    scenter(ctx, `NIGHT ${n + 1}`, 32, '#ffe040', 2);
+    // strikes as marks, not words
+    for (let i = 0; i < 3; i++) {
+      stext(ctx, 'X', W / 2 - 15 + i * 12, 58, i < run.strikes ? '#ff4040' : '#33334a');
+    }
+    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] PAINT', 122, '#ffe040');
+    scenter(ctx, '[B] THE BOOK', 140, '#c0a060');
   },
 };
 
@@ -527,8 +520,7 @@ const gameoverScene = {
     rect(ctx, W / 2, 0, W / 2, H, '#2040ff');
     ctx.globalAlpha = 1;
     drawHeader(G, ctx, this.t);
-    scenter(ctx, 'GAME OVER', 32, '#ff4040', 3);
-    scenter(ctx, 'THREE STRIKES. THE PRECINCT CALLS YOUR MOTHER.', 64, '#39c8e0');
+    scenter(ctx, 'GAME OVER', 36, '#ff4040', 3);
     scenter(ctx, '- RESULTS -', 84, '#ff4040');
     const rows = [
       ['NIGHTS SURVIVED', n],
@@ -540,9 +532,8 @@ const gameoverScene = {
       const line = label.padEnd(17, '.') + String(v).padStart(5, '.');
       scenter(ctx, line, 100 + i * 13, '#fff');
     });
-    if (this.isKing && n > 0) scenter(ctx, '*** NEW KING OF THE LINE ***', 158, '#40e050');
-    scenter(ctx, 'BUT THE PIECES ARE STILL RUNNING...', 174, '#9a9aa8');
-    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] BACK TO THE TITLE', 196, '#ffe040');
+    if (this.isKing && n > 0) scenter(ctx, '*** KING OF THE LINE ***', 162, '#40e050');
+    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, 'PRESS ENTER', 192, '#ffe040');
   },
 };
 

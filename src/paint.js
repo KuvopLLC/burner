@@ -293,7 +293,7 @@ export const paintScene = {
           G.go('intermission');
         } else {
           s.bailArm = 2;
-          say(s, 'DOESN\'T READ YET — [ENTER] AGAIN TO DIP OUT');
+          say(s, 'NOT DONE — [ENTER] AGAIN TO DIP');
         }
       }
     } else if (e.key === ' ') {
@@ -549,7 +549,7 @@ function burst(G, s, mx, my) {
       celebrate(s);
     } else if (!s.readyTold && s.coveredCount / s.totalRegion >= 0.6) {
       s.readyTold = true;
-      say(s, 'IT READS! [ENTER] CALLS IT DONE — OR KEEP BURNING');
+      say(s, 'IT READS — [ENTER] CALLS IT DONE');
     }
   } else {
     if (s.msgT <= 0) say(s, 'NOT HERE — CHECK THE SKETCH FOR THIS CAN');
@@ -644,11 +644,9 @@ export const resultScene = {
     // polaroid drops in
     const py = Math.min(120, -60 + s.t * 260);
     ctx.drawImage(s.polaroid, 300, py);
-    text(ctx, 'CLICK.', 308, py + 62, '#888');
 
-    scenter(ctx, 'UP!', 140, '#40e050', 2);
-    scenter(ctx, `NIGHT ${level(run)} CLEARED — ${level(run)} BURNER${level(run) === 1 ? '' : 'S'} UP`, 164, '#39c8e0');
-    if (s.t > 1 && Math.sin(s.t * 4) > -0.3) scenter(ctx, '[ENTER] THE BOOK', 192, '#ffe040');
+    scenter(ctx, 'UP!', 148, '#40e050', 2);
+    if (s.t > 1 && Math.sin(s.t * 4) > -0.3) scenter(ctx, '[ENTER] THE BOOK', 186, '#ffe040');
   },
 };
 
