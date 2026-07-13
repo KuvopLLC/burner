@@ -1,0 +1,63 @@
+{
+  "//": "Agile Markdown coach gate. Installed by `am create-backlog` and `am init`. Edit freely; future re-runs do not overwrite.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/session-context.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__agilemarkdown__set_status",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/coach-gate.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__agilemarkdown__set_estimate",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/coach-gate.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/am-work-gate.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/am-work-gate.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/am-work-gate.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
