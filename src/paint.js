@@ -8,7 +8,7 @@
 import { W, H, text, centerText, rect, frame, panel, meter, makeCanvas, drawSurface, makePolaroid } from './gfx.js';
 import { COLORS, PED_LINES } from './data.js';
 import { makeRng, pick, irange } from './rng.js';
-import { makeKid, makeCop, makeDog, makePedestrian, renderSketch } from './gen.js';
+import { makeKid, makeCop, makeDog, makePedestrian, renderSketch, renderPiece } from './gen.js';
 import { addPiece, level } from './world.js';
 import { sfxSpray, sfxSiren, sfxWhistle, sfxBust, sfxPop, sfxTick, sfxBark, playBeat } from './audio.js';
 
@@ -78,8 +78,11 @@ export const paintScene = {
     if (ptag === 'SABLE' || ptag === 'CRISPO 149') burstR++;
     if (ptag === 'TEKO 5') burstR += 2;
 
+    // paint-by-numbers ghost: the finished piece, faint, on the wall
+    const ghost = renderPiece(piece);
+
     this.s = {
-      rng, piece, spot, guide, masks, bag, lvl,
+      rng, piece, spot, guide, ghost, masks, bag, lvl,
       covered: new Uint8Array(piece.w * piece.h),
       coveredCount: 0,
       totalRegion: Object.values(piece.counts).reduce((a, b) => a + b, 0),
@@ -103,6 +106,8 @@ export const paintScene = {
       regFlash: null,
       busted: false, bustedT: 0, bustedBy: null,
       done: false, doneT: 0,
+      bailArm: 0,         // double-tap ENTER to dip out early
+      readyTold: false,
       kid: makeKid(hashStr(run.tag), hashStr(run.tag) % 360),
       copSprite: makeCop(hashStr(spot.id)),
       dogSprite: makeDog(hashStr(spot.id) ^ 77),
@@ -146,6 +151,7 @@ export const paintScene = {
     s.pulse += dt * 6;
     s.elapsed += dt;
     s.msgT -= dt;
+    if (s.bailArm > 0) s.bailArm -= dt;
 
     // burst hiss + effects
     if (s.sprayT > 0) { s.sprayT -= dt; sfxSpray(true); }
@@ -245,6 +251,22 @@ export const paintScene = {
       if (e.key === 'x' || e.key === 'X') burst(G, s, G.mouse.x, G.mouse.y);
       const n = parseInt(e.key, 10);
       if (n >= 1 && n <= s.bag.length) s.selected = n - 1;
+      if (e.key === 'Enter') {
+        const frac = s.coveredCount / s.totalRegion;
+        if (frac >= 0.6) {
+          // it reads — call it done and get out
+          s.done = true;
+          s.doneT = 0;
+          sfxPop();
+        } else if (s.bailArm > 0) {
+          // dipping out with nothing — no piece, no strike
+          sfxSpray(false);
+          G.go('intermission');
+        } else {
+          s.bailArm = 2;
+          say(s, 'DOESN\'T READ YET — [ENTER] AGAIN TO DIP OUT');
+        }
+      }
     } else if (e.key === ' ') {
       s.hiding = false;
     }
@@ -272,6 +294,11 @@ export const paintScene = {
     rect(ctx, 0, 140, W, 2, '#26262e');
 
     drawSurface(ctx, 28, 26, 264, 106, s.spot.kind, makeRng(7));
+    // paint-by-numbers: the finished piece ghosts on the wall, and your
+    // real paint covers it at full strength
+    ctx.globalAlpha = 0.30;
+    ctx.drawImage(s.ghost, PX, PY);
+    ctx.globalAlpha = 1;
     ctx.drawImage(s.guide, PX, PY);
     ctx.drawImage(s.paintCv[0], PX, PY);
 
@@ -279,7 +306,7 @@ export const paintScene = {
     const sel = s.bag[s.selected];
     const rid = Object.keys(s.piece.palette).find(r => s.piece.palette[r].id === sel.id);
     if (rid && !s.regDone[rid]) {
-      ctx.globalAlpha = 0.10 + 0.08 * Math.sin(s.pulse);
+      ctx.globalAlpha = 0.16 + 0.13 * Math.sin(s.pulse);
       ctx.drawImage(s.masks[rid], PX, PY);
       ctx.globalAlpha = 1;
     }
@@ -304,7 +331,7 @@ export const paintScene = {
       ctx.globalAlpha = 1;
     }
 
-    // aiming ring: where the next burst lands
+    // aiming ring: where the next burst lands, and which can this spot wants
     const m = G.mouse;
     if (!s.hiding && !s.busted && !s.done &&
         m.x >= PX - 6 && m.x < PX + s.piece.w + 6 && m.y >= PY - 6 && m.y < PY + s.piece.h + 6) {
@@ -316,6 +343,23 @@ export const paintScene = {
         if (ax >= 28 && ax < 292 && ay >= 26 && ay < 132) ctx.fillRect(ax, ay, 1, 1);
       }
       ctx.globalAlpha = 1;
+      // hover hint: the can number this region needs
+      const hx = Math.round(m.x - PX), hy = Math.round(m.y - PY);
+      if (hx >= 0 && hx < s.piece.w && hy >= 0 && hy < s.piece.h) {
+        const hrid = s.piece.regions[hy * s.piece.w + hx];
+        if (hrid && !s.regDone[hrid]) {
+          const wantId = s.piece.palette[hrid].id;
+          const bagIdx = s.bag.findIndex(c => c.id === wantId);
+          if (bagIdx >= 0) {
+            const tagX = Math.min(292, m.x + s.burstR + 3);
+            const right = bagIdx === s.selected;
+            rect(ctx, tagX, m.y - 5, 17, 11, '#101018');
+            frame(ctx, tagX, m.y - 5, 17, 11, right ? '#40cc50' : '#ffe040');
+            rect(ctx, tagX + 2, m.y - 3, 6, 7, s.piece.palette[hrid].hex);
+            text(ctx, String(bagIdx + 1), tagX + 10, m.y - 3, right ? '#40cc50' : '#ffe040');
+          }
+        }
+      }
     }
 
     // the kid ducks BEHIND the dumpster, so he draws first when hiding
@@ -362,7 +406,8 @@ export const paintScene = {
     // HUD — just the night, the piece, and your strikes
     const frac = s.coveredCount / s.totalRegion;
     text(ctx, `NIGHT ${s.lvl + 1}`, 8, 5, '#fff');
-    meter(ctx, 122, 6, 56, 7, frac, frac >= 0.999 ? '#40cc50' : '#cccc40');
+    meter(ctx, 122, 6, 56, 7, frac, frac >= 0.6 ? '#40cc50' : '#cccc40');
+    rect(ctx, 122 + Math.round(56 * 0.6), 5, 1, 9, '#8a8a96'); // "it reads" mark
     text(ctx, `PIECE ${Math.floor(frac * 100)}%`, 124, 14, '#888');
     for (let i = 0; i < 3; i++) {
       text(ctx, 'X', 8 + i * 9, 14, i < run.strikes ? '#ff3030' : '#333340');
@@ -390,7 +435,7 @@ export const paintScene = {
     if (s.msgT > 0) centerText(ctx, s.msg, 148, '#ffe040');
 
     if (s.done) {
-      centerText(ctx, 'BURNED IT!', 80, '#40e050', 2);
+      centerText(ctx, s.doneAll ? 'BURNED IT!' : 'IT READS — YOU\'RE UP!', 80, '#40e050', 2);
     }
 
     if (s.busted) {
@@ -447,8 +492,12 @@ function burst(G, s, mx, my) {
     }
     if ([1, 2, 3, 4, 5].every(rd => s.regDone[rd])) {
       s.done = true;
+      s.doneAll = true;
       s.doneT = 0;
       sfxPop();
+    } else if (!s.readyTold && s.coveredCount / s.totalRegion >= 0.6) {
+      s.readyTold = true;
+      say(s, 'IT READS! [ENTER] CALLS IT DONE — OR KEEP BURNING');
     }
   } else {
     if (s.msgT <= 0) say(s, 'NOT HERE — CHECK THE SKETCH FOR THIS CAN');

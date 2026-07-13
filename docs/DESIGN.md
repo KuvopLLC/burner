@@ -85,8 +85,13 @@ Gallery Nova in Mott Haven.
   burst. Paint ONLY lands inside the region that wants that color; it is
   impossible to paint outside the designated areas. Aim badly or hold the
   wrong can and nothing sticks — you just rattled the can and drew attention.
-  The region pulses while its can is selected, an aiming ring shows the burst
-  size, and a finished region flashes with a pop.
+  The finished piece **ghosts faintly on the wall** (paint-by-numbers), the
+  region pulses while its can is selected, a tag by the cursor names the can
+  the spot under it needs, an aiming ring shows the burst size, and a
+  finished region flashes with a pop.
+- **[ENTER] calls it done.** At 60%+ the piece reads — it goes up as-is and
+  you bounce. Under 60%, double-tap ENTER to dip out with nothing (no piece,
+  no strike). Fill every region for the full BURNED IT.
 - **No clock.** You stay at the wall until the piece is finished — or until
   the street takes you. The pressure is what comes at you:
 - **Trouble arrives in waves** that come faster (1) the more dangerous the
