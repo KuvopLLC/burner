@@ -10,7 +10,7 @@
 </style>
 </head>
 <body>
-<canvas id="screen" width="320" height="200"></canvas>
+<canvas id="screen" width="384" height="216"></canvas>
 <script type="module">
 import '../src/main.js';
 
@@ -21,7 +21,7 @@ import '../src/main.js';
 // transitions are console.logged so you know where a budget lands.
 
 const cv = document.getElementById('screen');
-const PXo = 40, PYo = 34; // piece offset in the paint scene (paint.js)
+const PXo = 72, PYo = 34; // piece offset in the paint scene (paint.js)
 
 function key(k, type = 'both') {
   if (type !== 'up') window.dispatchEvent(new KeyboardEvent('keydown', { key: k }));
@@ -29,7 +29,7 @@ function key(k, type = 'both') {
 }
 function mouse(type, gx, gy) {
   const b = cv.getBoundingClientRect();
-  const s = b.width / 320;
+  const s = b.width / 384;
   cv.dispatchEvent(new MouseEvent(type, {
     clientX: b.left + gx * s, clientY: b.top + gy * s, bubbles: true,
   }));

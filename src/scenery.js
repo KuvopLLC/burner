@@ -10,7 +10,7 @@ import { makeKid, makePedestrian, makeGuard, makeManager } from './gen.js';
 import { sfxWhoosh, sfxClink } from './audio.js';
 
 // piece surface position (matches paint.js)
-const SX = 28, SY = 26, SW = 264, SH = 106;
+const SX = 60, SY = 26, SW = 264, SH = 106;
 
 // vertical raster gradient, one row at a time — arcade skies
 function vgrad(c, x, y, w, h, hexTop, hexBot) {
@@ -99,10 +99,10 @@ function buildStreet(bd, c, st) {
   // sky, deep to horizon-glow
   vgrad(c, 0, 0, W, 14, '#050510', '#181432');
   // water tower on the roofline
-  rect(c, 248, 4, 14, 8, '#241c18'); rect(c, 250, 2, 10, 2, '#2c221c');
-  rect(c, 249, 12, 2, 3, '#241c18'); rect(c, 259, 12, 2, 3, '#241c18');
+  rect(c, 288, 4, 14, 8, '#241c18'); rect(c, 290, 2, 10, 2, '#2c221c');
+  rect(c, 289, 12, 2, 3, '#241c18'); rect(c, 299, 12, 2, 3, '#241c18');
   // tv antenna
-  rect(c, 60, 5, 1, 9, '#2a2a34'); rect(c, 56, 6, 9, 1, '#2a2a34'); rect(c, 58, 9, 5, 1, '#2a2a34');
+  rect(c, 92, 5, 1, 9, '#2a2a34'); rect(c, 88, 6, 9, 1, '#2a2a34'); rect(c, 90, 9, 5, 1, '#2a2a34');
   // the building the wall belongs to: a floor of windows above
   rect(c, 0, 14, W, 12, '#31201b');
   rect(c, 0, 14, W, 1, '#191219');
@@ -115,17 +115,17 @@ function buildStreet(bd, c, st) {
   // side walls beyond the paintable wall + drainpipe
   rect(c, 0, 26, SX, SH, '#241a16');
   rect(c, SX + SW, 26, W - SX - SW, SH, '#241a16');
-  rect(c, 18, 26, 3, 106, '#2e2620'); rect(c, 17, 40, 5, 2, '#241c18'); rect(c, 17, 90, 5, 2, '#241c18');
+  rect(c, 38, 26, 3, 106, '#2e2620'); rect(c, 37, 40, 5, 2, '#241c18'); rect(c, 37, 90, 5, 2, '#241c18');
   // the wall itself
   drawSurface(c, SX, SY, SW, SH, 'wall', rng);
   // sidewalk, curb, road
   rect(c, 0, 132, W, 8, '#3c3c44');
   for (let sx = 0; sx < W; sx += 24) rect(c, sx, 132, 1, 8, '#30303a');
   rect(c, 0, 140, W, 3, '#26262e');
-  vgrad(c, 0, 143, W, 57, '#20202a', '#131318');
+  vgrad(c, 0, 143, W, H - 143, '#20202a', '#131318');
   ctx_dashes(c);
   // pools of lamplight on the sidewalk
-  for (const px of [26, 298]) {
+  for (const px of [46, 342]) {
     c.fillStyle = '#4c4a4e';
     for (let dy = 0; dy < 8; dy++) {
       const ww = Math.round(14 * Math.sqrt(1 - Math.pow(dy / 8 - 0.5, 2) * 4) / 2) + 4;
@@ -133,27 +133,27 @@ function buildStreet(bd, c, st) {
     }
   }
   // streetlight poles flanking the wall, cones drawn dynamic
-  for (const px of [24, 296]) {
+  for (const px of [44, 340]) {
     rect(c, px, 70, 2, 62, '#383840');
     rect(c, px - (px > W / 2 ? 6 : -2) + (px > W / 2 ? 0 : 4), 70, 8, 2, '#383840');
     const lx = px > W / 2 ? px - 7 : px + 9;
     rect(c, lx, 71, 4, 3, '#ffe9a0');
   }
   // hydrant on the sidewalk
-  rect(c, 246, 133, 5, 7, '#8a2820'); rect(c, 247, 131, 3, 2, '#a03828');
-  rect(c, 245, 135, 7, 2, '#8a2820');
+  rect(c, 286, 133, 5, 7, '#8a2820'); rect(c, 287, 131, 3, 2, '#a03828');
+  rect(c, 285, 135, 7, 2, '#8a2820');
   // trash can + empties
-  rect(c, 300, 146, 11, 13, '#4a4e58'); rect(c, 299, 144, 13, 3, '#3c404a');
-  rect(c, 301, 148, 2, 9, '#3e424c');
-  rect(c, 296, 156, 2, 4, '#7a5c28'); rect(c, 313, 157, 2, 3, '#3a5c38'); // bottles
+  rect(c, 344, 146, 11, 13, '#4a4e58'); rect(c, 343, 144, 13, 3, '#3c404a');
+  rect(c, 345, 148, 2, 9, '#3e424c');
+  rect(c, 340, 156, 2, 4, '#7a5c28'); rect(c, 357, 157, 2, 3, '#3a5c38'); // bottles
   // parked car
   const hue = irange(rng, 0, 359);
-  rect(c, 58, 148, 52, 10, `hsl(${hue},30%,30%)`);
-  rect(c, 64, 144, 36, 5, `hsl(${hue},30%,24%)`);
-  rect(c, 67, 145, 13, 3, '#1a2028'); rect(c, 83, 145, 13, 3, '#1a2028');
-  rect(c, 62, 156, 8, 5, '#101014'); rect(c, 96, 156, 8, 5, '#101014');
-  rect(c, 64, 158, 3, 2, '#3c4048'); rect(c, 98, 158, 3, 2, '#3c4048');
-  rect(c, 57, 151, 2, 2, '#c8d0d8'); rect(c, 109, 151, 2, 2, '#b03030');
+  rect(c, 78, 148, 52, 10, `hsl(${hue},30%,30%)`);
+  rect(c, 84, 144, 36, 5, `hsl(${hue},30%,24%)`);
+  rect(c, 87, 145, 13, 3, '#1a2028'); rect(c, 103, 145, 13, 3, '#1a2028');
+  rect(c, 82, 156, 8, 5, '#101014'); rect(c, 116, 156, 8, 5, '#101014');
+  rect(c, 84, 158, 3, 2, '#3c4048'); rect(c, 118, 158, 3, 2, '#3c4048');
+  rect(c, 77, 151, 2, 2, '#c8d0d8'); rect(c, 129, 151, 2, 2, '#b03030');
 
   // ---- living pieces ----
   const kidA = makeKid(irange(rng, 0, 1e9), irange(rng, 0, 359));
@@ -185,7 +185,7 @@ function buildStreet(bd, c, st) {
     a.cars = a.cars.filter(car => car.x > -60 && car.x < W + 60);
     // boombox notes
     a.noteNext -= dt;
-    if (a.noteNext <= 0) { a.notes.push({ x: 86 + st.rng() * 6, y: 140, vy: 9 + st.rng() * 4, t: 0 }); a.noteNext = 1 + st.rng() * 0.8; }
+    if (a.noteNext <= 0) { a.notes.push({ x: 106 + st.rng() * 6, y: 140, vy: 9 + st.rng() * 4, t: 0 }); a.noteNext = 1 + st.rng() * 0.8; }
     for (const n of a.notes) { n.y -= n.vy * dt; n.t += dt; }
     a.notes = a.notes.filter(n => n.t < 1.6);
     // the guy by the trash can
@@ -200,7 +200,7 @@ function buildStreet(bd, c, st) {
     for (const w of st.windows) rect(ctx, w.x, w.y, w.w, w.h, w.lit ? '#c8a04a' : '#1c1518');
     for (const w of st.windows) { rect(ctx, w.x + 4, w.y, 1, w.h, '#00000030'); }
     // streetlight glow cones (breathe a little)
-    for (const px of [24, 296]) {
+    for (const px of [44, 340]) {
       const lx = px > W / 2 ? px - 7 : px + 9;
       const flick = 0.05 + 0.02 * Math.sin(t * 2.2 + px);
       ctx.fillStyle = '#ffe9a0';
@@ -226,12 +226,12 @@ function buildStreet(bd, c, st) {
       rect(ctx, car.dir === 1 ? cx - 1 : cx + 39, 151, 2, 2, '#c03030');
     }
     // hangout kids by the parked car + boombox on the hood
-    drawSpriteFlip(ctx, idleFrame(a.kidA, t, 0), 38, 118 + (Math.sin(t * 2.1) > 0.6 ? 1 : 0), false);
-    drawSpriteFlip(ctx, idleFrame(a.kidB, t, 1.4), 112, 118 + (Math.sin(t * 1.7 + 2) > 0.6 ? 1 : 0), true);
-    rect(ctx, 82, 138, 12, 7, '#22242c');
-    rect(ctx, 83, 139, 3, 3, '#3a3e48'); rect(ctx, 90, 139, 3, 3, '#3a3e48');
-    rect(ctx, 84 + Math.floor((Math.sin(t * 6) + 1) * 1.5), 143, 1, 1, '#ffe040'); // vu light
-    rect(ctx, 86, 137, 4, 1, '#3a3e48');
+    drawSpriteFlip(ctx, idleFrame(a.kidA, t, 0), 58, 118 + (Math.sin(t * 2.1) > 0.6 ? 1 : 0), false);
+    drawSpriteFlip(ctx, idleFrame(a.kidB, t, 1.4), 132, 118 + (Math.sin(t * 1.7 + 2) > 0.6 ? 1 : 0), true);
+    rect(ctx, 102, 138, 12, 7, '#22242c');
+    rect(ctx, 103, 139, 3, 3, '#3a3e48'); rect(ctx, 110, 139, 3, 3, '#3a3e48');
+    rect(ctx, 104 + Math.floor((Math.sin(t * 6) + 1) * 1.5), 143, 1, 1, '#ffe040'); // vu light
+    rect(ctx, 106, 137, 4, 1, '#3a3e48');
     // notes
     for (const n of a.notes) {
       ctx.globalAlpha = Math.max(0, 1 - n.t / 1.6);
@@ -240,10 +240,10 @@ function buildStreet(bd, c, st) {
     }
     // the drinker, holding it down by the trash can
     const sway = Math.sin(t * 0.9) > 0.7 ? 1 : 0;
-    drawSpriteFlip(ctx, idleFrame(a.drinker, t, 2.2), 300 + sway, 130, true);
+    drawSpriteFlip(ctx, idleFrame(a.drinker, t, 2.2), 344 + sway, 130, true);
     const up = a.bottleUp > 0;
-    rect(ctx, up ? 299 : 297, up ? 141 : 149, 2, 5, '#8a6428');
-    rect(ctx, up ? 299 : 297, up ? 139 : 147, 2, 2, '#5c421c');
+    rect(ctx, up ? 343 : 341, up ? 141 : 149, 2, 5, '#8a6428');
+    rect(ctx, up ? 343 : 341, up ? 139 : 147, 2, 2, '#5c421c');
   };
 }
 
@@ -260,40 +260,40 @@ function buildYard(bd, c, st) {
   vgrad(c, 0, 0, W, 16, '#04040e', '#151230');
   for (let dy = -3; dy <= 3; dy++) {
     const ww = Math.round(Math.sqrt(9 - dy * dy));
-    rect(c, 42 - ww, 8 + dy, ww * 2, 1, '#e8e4c8');
+    rect(c, 62 - ww, 8 + dy, ww * 2, 1, '#e8e4c8');
   }
-  rect(c, 40, 7, 2, 2, '#d0ccb0'); rect(c, 43, 10, 2, 1, '#d0ccb0');
+  rect(c, 60, 7, 2, 2, '#d0ccb0'); rect(c, 63, 10, 2, 1, '#d0ccb0');
   // distant yard office, lit late
-  rect(c, 6, 6, 40, 10, '#14141e');
-  rect(c, 10, 9, 4, 4, '#c8a04a'); rect(c, 18, 9, 4, 4, '#3a3020'); rect(c, 26, 9, 4, 4, '#c8a04a');
-  rect(c, 34, 9, 4, 4, '#3a3020');
-  rect(c, 20, 2, 3, 4, '#14141e');
+  rect(c, 16, 6, 40, 10, '#14141e');
+  rect(c, 20, 9, 4, 4, '#c8a04a'); rect(c, 28, 9, 4, 4, '#3a3020'); rect(c, 36, 9, 4, 4, '#c8a04a');
+  rect(c, 44, 9, 4, 4, '#3a3020');
+  rect(c, 30, 2, 3, 4, '#14141e');
   // background strip where the sister train rolls (drawn dynamic)
   rect(c, 0, 16, W, 10, '#0e0e18');
   // floodlight tower
-  rect(c, 304, 10, 3, 124, '#2e2e38');
-  rect(c, 296, 10, 11, 3, '#2e2e38');
-  rect(c, 296, 13, 4, 3, '#ffe9a0');
+  rect(c, 348, 10, 3, 124, '#2e2e38');
+  rect(c, 340, 10, 11, 3, '#2e2e38');
+  rect(c, 340, 13, 4, 3, '#ffe9a0');
   // the signal
-  rect(c, 8, 100, 3, 40, '#2e2e38');
-  rect(c, 5, 92, 9, 12, '#1c1c26');
+  rect(c, 26, 100, 3, 40, '#2e2e38');
+  rect(c, 23, 92, 9, 12, '#1c1c26');
   // our train
   drawSurface(c, SX, SY, SW, SH, 'train', rng, st.line);
   // rails + sleepers + gravel under the car
   rect(c, 0, 134, W, 2, '#585c66');
   rect(c, 0, 138, W, 1, '#40444e');
   for (let sx = 2; sx < W; sx += 14) rect(c, sx, 136, 8, 4, '#2a2a32');
-  vgrad(c, 0, 142, W, 58, '#242430', '#15151c');
+  vgrad(c, 0, 142, W, H - 142, '#242430', '#15151c');
   ctx_gravel(c, rng);
   // a second track in the foreground
   rect(c, 0, 158, W, 2, '#444852');
   rect(c, 0, 162, W, 1, '#343842');
   // electrical cabinet + barrels
-  rect(c, 294, 108, 20, 26, '#2a4a34');
-  rect(c, 296, 112, 16, 2, '#1d3625'); rect(c, 296, 118, 16, 2, '#1d3625');
-  rect(c, 304, 126, 6, 4, '#ffe040');
-  rect(c, 276, 146, 9, 12, '#4a3a2a'); rect(c, 286, 148, 9, 10, '#3a3a4a');
-  rect(c, 276, 146, 9, 2, '#5c4a34'); rect(c, 286, 148, 9, 2, '#4a4a5c');
+  rect(c, 338, 108, 20, 26, '#2a4a34');
+  rect(c, 340, 112, 16, 2, '#1d3625'); rect(c, 340, 118, 16, 2, '#1d3625');
+  rect(c, 348, 126, 6, 4, '#ffe040');
+  rect(c, 316, 146, 9, 12, '#4a3a2a'); rect(c, 326, 148, 9, 10, '#3a3a4a');
+  rect(c, 316, 146, 9, 2, '#5c4a34'); rect(c, 326, 148, 9, 2, '#4a4a5c');
 
   const guard = makeGuard(irange(rng, 0, 1e9));
   st.actors = {
@@ -331,14 +331,14 @@ function buildYard(bd, c, st) {
       for (let wx = 4; wx < 82; wx += 9) rect(ctx, cx + wx, 19, 5, 3, '#6a6248');
     }
     // signal lamps
-    rect(ctx, 7, 94, 3, 3, a.sigRed ? '#ff3030' : '#341212');
-    rect(ctx, 7, 99, 3, 3, a.sigRed ? '#123412' : '#40e050');
+    rect(ctx, 25, 94, 3, 3, a.sigRed ? '#ff3030' : '#341212');
+    rect(ctx, 25, 99, 3, 3, a.sigRed ? '#123412' : '#40e050');
     // floodlight cone over the car, with a breath of flicker
     const flick = 0.07 + 0.015 * Math.sin(t * 3.1);
     ctx.fillStyle = '#ffe9a0';
     for (let step = 0; step < 6; step++) {
       ctx.globalAlpha = flick * (1 - step / 6);
-      rect(ctx, 298 - step * 16, 16 + step * 8, 10 + step * 16, 9, '#ffe9a0');
+      rect(ctx, 342 - step * 16, 16 + step * 8, 10 + step * 16, 9, '#ffe9a0');
     }
     ctx.globalAlpha = 1;
     // the guard on his rounds (behind our car he'd be invisible; he
@@ -370,8 +370,8 @@ function buildGallery(bd, c, st) {
   const rng = st.rng;
   // ceiling + track lighting
   rect(c, 0, 0, W, 10, '#d9d5cc');
-  rect(c, 20, 8, 280, 2, '#3a3a40');
-  for (const lx of [70, 160, 250]) {
+  rect(c, 30, 8, 324, 2, '#3a3a40');
+  for (const lx of [92, 192, 292]) {
     rect(c, lx, 10, 6, 4, '#2c2c32');
     rect(c, lx + 1, 14, 4, 1, '#ffe9a0');
   }
@@ -381,55 +381,55 @@ function buildGallery(bd, c, st) {
   // the canvas (our surface)
   drawSurface(c, SX, SY, SW, SH, 'gallery', rng);
   // title card
-  rect(c, 250, 120, 22, 8, '#f8f6f0'); frame(c, 250, 120, 22, 8, '#c9c4b8');
-  rect(c, 252, 123, 14, 1, '#8a857a'); rect(c, 252, 125, 9, 1, '#b0aa9c');
+  rect(c, 290, 120, 22, 8, '#f8f6f0'); frame(c, 290, 120, 22, 8, '#c9c4b8');
+  rect(c, 292, 123, 14, 1, '#8a857a'); rect(c, 292, 125, 9, 1, '#b0aa9c');
   // window onto the city, right wall
-  rect(c, 294, 22, 24, 100, '#0e1c30');
-  frame(c, 293, 21, 26, 102, '#8a8272');
-  rect(c, 305, 22, 2, 100, '#8a8272');
-  rect(c, 294, 74, 24, 2, '#8a8272');
+  rect(c, 338, 22, 24, 100, '#0e1c30');
+  frame(c, 337, 21, 26, 102, '#8a8272');
+  rect(c, 349, 22, 2, 100, '#8a8272');
+  rect(c, 338, 74, 24, 2, '#8a8272');
   // skyline in the window
   for (let bx = 0; bx < 3; bx++) {
     const bh = 20 + Math.floor(rng() * 26);
-    rect(c, 295 + bx * 8, 120 - bh, 7, bh, '#131322');
+    rect(c, 339 + bx * 8, 120 - bh, 7, bh, '#131322');
   }
   st.cityLights = [];
   for (let i = 0; i < 14; i++) {
     st.cityLights.push({
-      x: 296 + Math.floor(rng() * 20), y: 80 + Math.floor(rng() * 38),
+      x: 340 + Math.floor(rng() * 20), y: 80 + Math.floor(rng() * 38),
       lit: rng() < 0.5, next: 3 + rng() * 10,
     });
   }
   // moon in the window
-  rect(c, 310, 30, 4, 4, '#e8e4c8'); rect(c, 311, 29, 2, 6, '#e8e4c8');
+  rect(c, 354, 30, 4, 4, '#e8e4c8'); rect(c, 355, 29, 2, 6, '#e8e4c8');
   // wood floor (before the furniture that stands on it)
-  vgrad(c, 0, 132, W, 68, '#8a6a4a', '#5f4530');
-  for (let fy = 138; fy < 200; fy += 8) rect(c, 0, fy, W, 1, '#6a4e36');
-  for (let fx = 20; fx < W; fx += 48) rect(c, fx, 132, 1, 68, '#6a4e36');
+  vgrad(c, 0, 132, W, H - 132, '#8a6a4a', '#5f4530');
+  for (let fy = 138; fy < H; fy += 8) rect(c, 0, fy, W, 1, '#6a4e36');
+  for (let fx = 20; fx < W; fx += 48) rect(c, fx, 132, 1, H - 132, '#6a4e36');
   // sheen where the spots hit the boards
   c.fillStyle = '#9c7a54';
-  for (const lx of [70, 160, 250]) {
+  for (const lx of [92, 192, 292]) {
     for (let dy = 0; dy < 5; dy++) {
       for (let dx = -10 + dy; dx <= 10 - dy; dx += 2) c.fillRect(lx + 2 + dx + (dy % 2), 133 + dy, 1, 1);
     }
   }
   // pedestal with a blue period sculpture
-  rect(c, 8, 96, 14, 36, '#f2efe8'); frame(c, 8, 96, 14, 36, '#cdc8bc');
-  rect(c, 11, 86, 8, 10, '#3a5c9c'); rect(c, 13, 82, 4, 5, '#4a6cac'); rect(c, 10, 90, 10, 3, '#2a4c8c');
+  rect(c, 24, 96, 14, 36, '#f2efe8'); frame(c, 24, 96, 14, 36, '#cdc8bc');
+  rect(c, 27, 86, 8, 10, '#3a5c9c'); rect(c, 29, 82, 4, 5, '#4a6cac'); rect(c, 26, 90, 10, 3, '#2a4c8c');
   // wine + cheese table
-  rect(c, 38, 146, 34, 3, '#f4f1ea');
-  rect(c, 40, 149, 3, 12, '#c9c4b8'); rect(c, 67, 149, 3, 12, '#c9c4b8');
-  rect(c, 44, 138, 3, 8, '#1d3625'); rect(c, 44, 136, 3, 2, '#2a4a34');
-  rect(c, 51, 141, 2, 5, '#d8e8f0'); rect(c, 50, 140, 4, 1, '#d8e8f0');
-  rect(c, 56, 141, 2, 5, '#d8e8f0'); rect(c, 55, 140, 4, 1, '#d8e8f0');
-  rect(c, 61, 143, 7, 3, '#f0d060'); rect(c, 62, 142, 5, 1, '#f8e080');
+  rect(c, 58, 146, 34, 3, '#f4f1ea');
+  rect(c, 60, 149, 3, 12, '#c9c4b8'); rect(c, 87, 149, 3, 12, '#c9c4b8');
+  rect(c, 64, 138, 3, 8, '#1d3625'); rect(c, 64, 136, 3, 2, '#2a4a34');
+  rect(c, 71, 141, 2, 5, '#d8e8f0'); rect(c, 70, 140, 4, 1, '#d8e8f0');
+  rect(c, 76, 141, 2, 5, '#d8e8f0'); rect(c, 75, 140, 4, 1, '#d8e8f0');
+  rect(c, 81, 143, 7, 3, '#f0d060'); rect(c, 82, 142, 5, 1, '#f8e080');
   // bench, very modern
-  rect(c, 130, 150, 44, 5, '#1a1a20');
-  rect(c, 132, 155, 3, 8, '#8a8f98'); rect(c, 169, 155, 3, 8, '#8a8f98');
+  rect(c, 160, 150, 44, 5, '#1a1a20');
+  rect(c, 162, 155, 3, 8, '#8a8f98'); rect(c, 199, 155, 3, 8, '#8a8f98');
   // potted plant
-  rect(c, 300, 146, 10, 10, '#8a4a2e');
-  rect(c, 302, 138, 2, 8, '#2a5c30'); rect(c, 306, 136, 2, 10, '#2a5c30');
-  rect(c, 299, 140, 3, 4, '#347038'); rect(c, 308, 141, 3, 4, '#347038');
+  rect(c, 344, 146, 10, 10, '#8a4a2e');
+  rect(c, 346, 138, 2, 8, '#2a5c30'); rect(c, 350, 136, 2, 10, '#2a5c30');
+  rect(c, 343, 140, 3, 4, '#347038'); rect(c, 352, 141, 3, 4, '#347038');
 
   const mgr = makeManager(irange(rng, 0, 1e9));
   st.actors = { mgr, mx: 200, mdir: -1, pause: 2, hmm: 0, clinkNext: 12 + rng() * 10 };
@@ -441,7 +441,7 @@ function buildGallery(bd, c, st) {
       if (a.pause <= 0 && st.rng() < 0.4) { a.hmm = 2; }
     } else {
       a.mx += a.mdir * 9 * dt;
-      if (a.mx < 60 || a.mx > 250) { a.mdir *= -1; a.pause = 2 + st.rng() * 3; }
+      if (a.mx < 70 || a.mx > 290) { a.mdir *= -1; a.pause = 2 + st.rng() * 3; }
       else if (st.rng() < dt / 6) a.pause = 2 + st.rng() * 3;
     }
     if (a.hmm > 0) a.hmm -= dt;
@@ -458,7 +458,7 @@ function buildGallery(bd, c, st) {
     }
     // spotlight cones onto the canvas, shimmering ever so slightly
     ctx.fillStyle = '#fff6d8';
-    for (const lx of [70, 160, 250]) {
+    for (const lx of [92, 192, 292]) {
       const shim = 0.07 + 0.012 * Math.sin(t * 1.4 + lx);
       for (let step = 0; step < 5; step++) {
         ctx.globalAlpha = shim * (1 - step / 5);

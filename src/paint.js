@@ -13,8 +13,8 @@ import { makeScenery, drawSpriteFlip, idleFrame, walkFrame } from './scenery.js'
 import { addPiece, level } from './world.js';
 import { sfxSpray, sfxSiren, sfxWhistle, sfxBust, sfxPop, sfxTick, sfxBark, sfxRattle, sfxTwinkle, playBeat, startAmbience } from './audio.js';
 
-// Piece placement on screen
-const PX = 40, PY = 34;
+// Piece placement on screen: surface centered in the wider frame
+const SURF_X = 60, PX = SURF_X + 12, PY = 34;
 
 function hashStr(s) {
   let h = 2166136261;
@@ -168,7 +168,7 @@ export const paintScene = {
     if (s.regFlash) { s.regFlash.t -= dt; if (s.regFlash.t <= 0) s.regFlash = null; }
 
     // the kid drifts toward the cursor — feet, not teleports
-    const targetX = Math.max(30, Math.min(276, G.mouse.x - 10));
+    const targetX = Math.max(SURF_X + 2, Math.min(SURF_X + 244, G.mouse.x - 10));
     s.kidVel = (targetX - s.kidX) * Math.min(1, dt * 8);
     s.kidX += s.kidVel;
 
@@ -239,7 +239,7 @@ export const paintScene = {
       const d = s.dog;
       const speed = 55 + s.lvl * 4 + s.spot.danger * 3;
       d.x += d.dir * speed * dt;
-      const kidX = Math.max(30, Math.min(276, G.mouse.x - 10)) + 10;
+      const kidX = Math.max(SURF_X + 2, Math.min(SURF_X + 244, G.mouse.x - 10)) + 10;
       if (!d.bit && !s.hiding && Math.abs(d.x + 12 - kidX) < 13) {
         d.bit = true;
         return bust(G, this, 'dog');
@@ -305,8 +305,8 @@ export const paintScene = {
     const s = this.s;
     if (s.busted || s.done) return;
     // can selection by clicking the bag; anywhere on the piece = spray
-    const i = Math.floor((x - 26) / 40);
-    if (y >= 168 && y <= 196 && i >= 0 && i < s.bag.length) {
+    const i = Math.floor((x - 58) / 40);
+    if (y >= 180 && y <= 214 && i >= 0 && i < s.bag.length) {
       if (i !== s.selected) { s.selected = i; sfxRattle(); }
       return;
     }
@@ -350,7 +350,7 @@ export const paintScene = {
       for (let a = 0; a < 16; a++) {
         const fx = Math.round(f.x + Math.cos(a * 0.3927) * rr);
         const fy = Math.round(f.y + Math.sin(a * 0.3927) * rr);
-        if (fx >= 28 && fx < 292 && fy >= 26 && fy < 132) ctx.fillRect(fx, fy, 1, 1);
+        if (fx >= SURF_X && fx < SURF_X + 264 && fy >= 26 && fy < 132) ctx.fillRect(fx, fy, 1, 1);
       }
       ctx.globalAlpha = 1;
     }
@@ -364,7 +364,7 @@ export const paintScene = {
       for (let a = 0; a < 24; a++) {
         const ax = Math.round(m.x + Math.cos(a * 0.2618) * s.burstR);
         const ay = Math.round(m.y + Math.sin(a * 0.2618) * s.burstR);
-        if (ax >= 28 && ax < 292 && ay >= 26 && ay < 132) ctx.fillRect(ax, ay, 1, 1);
+        if (ax >= SURF_X && ax < SURF_X + 264 && ay >= 26 && ay < 132) ctx.fillRect(ax, ay, 1, 1);
       }
       ctx.globalAlpha = 1;
       // hover hint: the can number this region needs
@@ -375,7 +375,7 @@ export const paintScene = {
           const wantId = s.piece.palette[hrid].id;
           const bagIdx = s.bag.findIndex(c => c.id === wantId);
           if (bagIdx >= 0) {
-            const tagX = Math.min(292, m.x + s.burstR + 3);
+            const tagX = Math.min(SURF_X + 264, m.x + s.burstR + 3);
             const right = bagIdx === s.selected;
             rect(ctx, tagX, m.y - 5, 17, 11, '#101018');
             frame(ctx, tagX, m.y - 5, 17, 11, right ? '#40cc50' : '#ffe040');
@@ -400,24 +400,24 @@ export const paintScene = {
     }
 
     // the kid ducks BEHIND cover, so he draws first when hiding
-    if (s.hiding) drawSpriteFlip(ctx, s.kid.idle[0], 12, 100, false);
+    if (s.hiding) drawSpriteFlip(ctx, s.kid.idle[0], 30, 100, false);
 
     // cover: a dumpster on the street and in the yard, a divider screen
     // at the gallery
     if (s.spot.kind === 'gallery') {
-      rect(ctx, 6, 106, 30, 32, '#f2efe8');
-      frame(ctx, 6, 106, 30, 32, '#c9c4b8');
-      rect(ctx, 20, 108, 1, 28, '#ddd8cc');
+      rect(ctx, 24, 106, 30, 32, '#f2efe8');
+      frame(ctx, 24, 106, 30, 32, '#c9c4b8');
+      rect(ctx, 38, 108, 1, 28, '#ddd8cc');
     } else {
-      rect(ctx, 6, 118, 28, 20, '#2a4a34');
-      rect(ctx, 6, 116, 28, 3, '#3a5f44');
-      rect(ctx, 6, 128, 28, 1, '#1d3625');
-      rect(ctx, 9, 121, 4, 3, '#1d3625');
+      rect(ctx, 24, 118, 28, 20, '#2a4a34');
+      rect(ctx, 24, 116, 28, 3, '#3a5f44');
+      rect(ctx, 24, 128, 28, 1, '#1d3625');
       rect(ctx, 27, 121, 4, 3, '#1d3625');
+      rect(ctx, 45, 121, 4, 3, '#1d3625');
     }
 
     if (s.hiding) {
-      text(ctx, '!', 20, 94, '#ffe040');
+      text(ctx, '!', 38, 94, '#ffe040');
     } else if (!s.busted) {
       const kx = Math.round(s.kidX);
       const moving = Math.abs(s.kidVel) > 0.35;
@@ -463,24 +463,24 @@ export const paintScene = {
     drawCrewCorner(G, ctx);
 
     // bag of cans
-    panel(ctx, 20, 164, 280, 34, '#101018', '#3a3a52');
+    panel(ctx, 52, 178, 280, 36, '#101018', '#3a3a52');
     for (let i = 0; i < s.bag.length; i++) {
-      const cx = 26 + i * 40;
+      const cx = 58 + i * 40;
       const isSel = i === s.selected;
-      if (isSel) frame(ctx, cx - 2, 166, 36, 30, '#fff');
-      rect(ctx, cx + 1, 170, 12, 20, '#15130f');      // silhouette
-      rect(ctx, cx + 2, 171, 10, 18, s.bag[i].hex);   // body
+      if (isSel) frame(ctx, cx - 2, 181, 36, 30, '#fff');
+      rect(ctx, cx + 1, 185, 12, 20, '#15130f');      // silhouette
+      rect(ctx, cx + 2, 186, 10, 18, s.bag[i].hex);   // body
       ctx.globalAlpha = 0.3;
-      rect(ctx, cx + 3, 171, 2, 18, '#fff');          // sheen
+      rect(ctx, cx + 3, 186, 2, 18, '#fff');          // sheen
       ctx.globalAlpha = 1;
-      rect(ctx, cx + 2, 178, 10, 5, '#ece7d8');       // label band
-      rect(ctx, cx + 4, 180, 6, 1, s.bag[i].hex);
-      rect(ctx, cx + 4, 167, 6, 3, '#8a8f98');        // cap
-      rect(ctx, cx + 5, 166, 4, 1, '#aab0ba');
-      text(ctx, String(i + 1), cx + 17, 170, isSel ? '#fff' : '#777');
+      rect(ctx, cx + 2, 193, 10, 5, '#ece7d8');       // label band
+      rect(ctx, cx + 4, 195, 6, 1, s.bag[i].hex);
+      rect(ctx, cx + 4, 182, 6, 3, '#8a8f98');        // cap
+      rect(ctx, cx + 5, 181, 4, 1, '#aab0ba');
+      text(ctx, String(i + 1), cx + 17, 186, isSel ? '#fff' : '#777');
     }
 
-    if (s.msgT > 0) scenter(ctx, s.msg, 148, '#ffe040');
+    if (s.msgT > 0) scenter(ctx, s.msg, 156, '#ffe040');
 
     if (s.done) {
       scenter(ctx, s.doneAll ? 'BURNED IT!' : 'IT READS — YOU\'RE UP!', 80, '#40e050', 2);
@@ -640,15 +640,15 @@ export const resultScene = {
   draw(G, ctx) {
     const s = this.s, run = G.run;
     rect(ctx, 0, 0, W, H, '#0c0c1e');
-    ctx.drawImage(s.comp, 28, 20);
+    ctx.drawImage(s.comp, 60, 20);
     // polaroid drops in
     const py = Math.min(120, -60 + s.t * 260);
-    ctx.drawImage(s.polaroid, 236, py);
-    text(ctx, 'CLICK.', 244, py + 60, '#888');
+    ctx.drawImage(s.polaroid, 300, py);
+    text(ctx, 'CLICK.', 308, py + 62, '#888');
 
-    scenter(ctx, 'UP!', 136, '#40e050', 2);
-    scenter(ctx, `NIGHT ${level(run)} CLEARED — ${level(run)} BURNER${level(run) === 1 ? '' : 'S'} UP`, 158, '#39c8e0');
-    if (s.t > 1 && Math.sin(s.t * 4) > -0.3) scenter(ctx, '[ENTER] THE BOOK', 182, '#ffe040');
+    scenter(ctx, 'UP!', 140, '#40e050', 2);
+    scenter(ctx, `NIGHT ${level(run)} CLEARED — ${level(run)} BURNER${level(run) === 1 ? '' : 'S'} UP`, 164, '#39c8e0');
+    if (s.t > 1 && Math.sin(s.t * 4) > -0.3) scenter(ctx, '[ENTER] THE BOOK', 192, '#ffe040');
   },
 };
 

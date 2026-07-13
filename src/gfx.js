@@ -4,7 +4,7 @@
 
 import { glyphRows, GLYPH_W, GLYPH_H, ADVANCE } from './font.js';
 
-export const W = 320, H = 200;
+export const W = 384, H = 216;
 
 const textCache = new Map();
 
