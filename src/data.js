@@ -62,6 +62,10 @@ export const SPOTS = [
     x: 94, y: 80, danger: 2, requires: 'BUGSY' },
   { id: 'sound', name: 'SOUNDVIEW COURTS', kind: 'wall', line: null,
     x: 146, y: 142, danger: 1, requires: 'RONDO' },
+  { id: 'st149', name: '149TH ST STATION', kind: 'station', line: '2/5',
+    x: 124, y: 121, danger: 4 },
+  { id: 'whitlock', name: 'WHITLOCK AV STATION', kind: 'station', line: '6',
+    x: 168, y: 121, danger: 3 },
   { id: 'nova', name: 'GALLERY NOVA', kind: 'gallery', line: null,
     x: 76, y: 138, danger: 0 },
 ];

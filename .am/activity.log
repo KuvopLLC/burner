@@ -55,3 +55,7 @@
 2026-07-15T10:43:23Z	Matthew Reider	delivered	burner/Tune-hazard-pacing-from-real-playtests.md	
 2026-07-15T10:43:23Z	Matthew Reider	accepted	burner/Tune-hazard-pacing-from-real-playtests.md	Reasoned pass from headless-run observations, not human playtests: opening grace window, 2x gear rate when unpowered, longer knockdown mercy. Regression clean. PM hands-on feel may re-tune; numbers are one-liners in paint.js.
 2026-07-15T10:43:23Z	Matthew Reider	started	burner/Custom-fat-graffiti-alphabet-for-pieces.md	
+2026-07-15T10:46:07Z	Matthew Reider	finished	burner/Custom-fat-graffiti-alphabet-for-pieces.md	
+2026-07-15T10:46:07Z	Matthew Reider	delivered	burner/Custom-fat-graffiti-alphabet-for-pieces.md	
+2026-07-15T10:46:07Z	Matthew Reider	accepted	burner/Custom-fat-graffiti-alphabet-for-pieces.md	Went programmatic (scale-proportional dilation + corner rounding + advance compensation) rather than hand-authoring 36 glyphs — the sheet shows real throw-up mass with legibility kept. Full regression clean.
+2026-07-15T10:46:07Z	Matthew Reider	started	burner/Subway-station-as-a-fourth-spot-kind.md	

@@ -2,10 +2,11 @@
 title: Subway station as a fourth spot kind
 type: feature
 created: "2026-07-13T18:04:54Z"
-modified: "2026-07-13T18:04:54Z"
+modified: "2026-07-15T10:46:07Z"
 author: Matthew Reider
-status: unstarted
+status: started
 project: burner
+started: "2026-07-15T10:46:07Z"
 ---
 
 ## Problem statement

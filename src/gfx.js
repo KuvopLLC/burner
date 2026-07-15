@@ -154,6 +154,31 @@ export function drawSurface(ctx, x, y, w, h, kind, rng, line) {
         rect(ctx, x + bx + wx + 3, y + 102, 2, 2, '#3c4048'); // hub
       }
     }
+  } else if (kind === 'station') {
+    // white subway tile, grout, and the mosaic name band
+    rect(ctx, x, y, w, h, '#d8d4c8');
+    ctx.fillStyle = '#c2beb2';
+    for (let ty = 0; ty * 6 < h; ty++) {
+      const off = (ty % 2) * 6;
+      for (let tx = -1; tx * 12 < w + 12; tx++) {
+        ctx.fillRect(Math.round(x + tx * 12 + off), Math.round(y + ty * 6), 1, 6);
+      }
+      ctx.fillRect(Math.round(x), Math.round(y + ty * 6), w, 1);
+    }
+    // grime settles low
+    if (rng) {
+      ctx.fillStyle = '#b8b2a2';
+      for (let i = 0; i < 50; i++) {
+        ctx.fillRect(Math.round(x + rng() * w), Math.round(y + h - 26 + rng() * 26), 2, 1);
+      }
+    }
+    // mosaic band
+    rect(ctx, x, y + 8, w, 10, '#274a36');
+    ctx.fillStyle = '#356248';
+    for (let mx = 2; mx < w; mx += 4) ctx.fillRect(x + mx, y + 9, 2, 8);
+    rect(ctx, x, y + 7, w, 1, '#8a5a2a');
+    rect(ctx, x, y + 18, w, 1, '#8a5a2a');
+    text(ctx, '149 ST', x + w / 2 - 18, y + 10, '#e8e0c8');
   } else if (kind === 'gallery') {
     rect(ctx, x, y, w, h, '#eae7e0');                  // gallery wall
     rect(ctx, x + 8, y + 4, w - 14, h - 10, '#c9c4b8'); // canvas shadow

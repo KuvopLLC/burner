@@ -2,11 +2,14 @@
 title: Custom fat graffiti alphabet for pieces
 type: feature
 created: "2026-07-13T18:04:54Z"
-modified: "2026-07-15T10:43:23Z"
+modified: "2026-07-15T10:46:07Z"
 author: Matthew Reider
-status: started
+status: accepted
 project: burner
 started: "2026-07-15T10:43:23Z"
+finished: "2026-07-15T10:46:07Z"
+delivered: "2026-07-15T10:46:07Z"
+accepted: "2026-07-15T10:46:07Z"
 ---
 
 ## Problem statement

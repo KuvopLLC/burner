@@ -64,6 +64,7 @@ export function makeScenery(kind, seed, line) {
 
   if (kind === 'train') buildYard(bd, bc, state);
   else if (kind === 'gallery') buildGallery(bd, bc, state);
+  else if (kind === 'station') buildStation(bd, bc, state);
   else buildStreet(bd, bc, state);
 
   return {
@@ -362,6 +363,103 @@ function ctx_gravel(c, rng) {
   for (let i = 0; i < 160; i++) c.fillRect(Math.floor(rng() * W), 142 + Math.floor(rng() * 20), 1, 1);
   c.fillStyle = '#181820';
   for (let i = 0; i < 120; i++) c.fillRect(Math.floor(rng() * W), 142 + Math.floor(rng() * 20), 1, 1);
+}
+
+// ---- THE STATION --------------------------------------------------------------
+
+function buildStation(bd, c, st) {
+  const rng = st.rng;
+  // ceiling with hanging lamps
+  vgrad(c, 0, 0, W, 14, '#1a1812', '#2a2820');
+  for (const lx of [70, 190, 310]) {
+    rect(c, lx, 8, 2, 6, '#2e2a22');
+    rect(c, lx - 4, 14, 10, 3, '#3a362c');
+    rect(c, lx - 2, 15, 6, 1, '#ffe9a0');
+  }
+  // dark side walls beyond the paintable tile
+  rect(c, 0, 14, W, 118, '#232019');
+  // the tiled wall (paint surface)
+  drawSurface(c, SX, SY, SW, SH, 'station', rng);
+  // a hanging sign
+  rect(c, 150, 16, 2, 6, '#2e2a22'); rect(c, 232, 16, 2, 6, '#2e2a22');
+  rect(c, 144, 22, 96, 11, '#0c0c10');
+  frame(c, 144, 22, 96, 11, '#2e3238');
+  text(c, 'UPTOWN >', 168, 24, '#e8e0c8');
+  // platform floor
+  vgrad(c, 0, 132, W, 26, '#4a463c', '#38342c');
+  // tactile warning strip at the platform edge
+  rect(c, 0, 154, W, 4, '#c2a63a');
+  ctx_strip(c);
+  // the track pit
+  vgrad(c, 0, 158, W, H - 158, '#12100c', '#060604');
+  rect(c, 0, 176, W, 2, '#3c3830'); // running rail glint
+  for (let sx2 = 4; sx2 < W; sx2 += 16) rect(c, sx2, 170, 10, 3, '#1c1a14');
+  // token booth, warm light
+  rect(c, 316, 96, 42, 36, '#3a3226');
+  rect(c, 320, 100, 22, 16, '#ffd98a');
+  frame(c, 319, 99, 24, 18, '#241f16');
+  rect(c, 320, 118, 34, 2, '#241f16');
+  text(c, 'TOKENS', 318, 124, '#c2a63a');
+  // turnstiles far left
+  for (const tx of [10, 26, 42]) {
+    rect(c, tx, 112, 12, 20, '#4a4438');
+    rect(c, tx + 2, 110, 8, 3, '#5a5444');
+    rect(c, tx - 2, 118, 16, 2, '#8a8272');
+  }
+
+  const guard = makeGuard(irange(rng, 0, 1e9));
+  st.actors = { guard, gx: W + 30, gdir: -1, gNext: 10 + rng() * 10, dtx: -160, ratX: 300, ratDir: -1 };
+
+  st.tick = dt => {
+    const a = st.actors;
+    // an express blows through the pit now and then
+    a.dtx += dt * 210;
+    if (a.dtx > W + 400) a.dtx = -400 - rng() * 600;
+    // a rat works the platform edge
+    a.ratX += a.ratDir * 9 * dt;
+    if (a.ratX < 60 || a.ratX > 330) a.ratDir *= -1;
+    // the clerk's colleague does rounds
+    if (a.gNext > 0) a.gNext -= dt;
+    else {
+      a.gx += a.gdir * 11 * dt;
+      if (a.gx < -30 || a.gx > W + 30) { a.gdir *= -1; a.gNext = 14 + st.rng() * 12; }
+    }
+  };
+
+  st.drawDyn = ctx => {
+    const a = st.actors, t = st.t;
+    // express train streaking through the pit
+    if (a.dtx > -400 && a.dtx < W + 60) {
+      const dx = Math.round(a.dtx);
+      for (let carN = 0; carN < 4; carN++) {
+        const cx = dx + carN * 92;
+        rect(ctx, cx, 160, 88, 14, '#2a2c34');
+        for (let wx = 6; wx < 84; wx += 10) rect(ctx, cx + wx, 163, 6, 5, '#8a8252');
+      }
+    }
+    // lamp pools breathing on the platform
+    ctx.fillStyle = '#ffe9a0';
+    for (const lx of [70, 190, 310]) {
+      const fl = 0.06 + 0.015 * Math.sin(t * 2.4 + lx);
+      for (let step = 0; step < 4; step++) {
+        ctx.globalAlpha = fl * (1 - step / 4);
+        rect(ctx, lx - 8 - step * 8, 132 + step * 5, 18 + step * 16, 6, '#ffe9a0');
+      }
+    }
+    ctx.globalAlpha = 1;
+    // the rat
+    rect(ctx, Math.round(a.ratX), 151, 5, 2, '#2c2620');
+    rect(ctx, Math.round(a.ratX) + (a.ratDir === 1 ? 5 : -2), 152, 2, 1, '#2c2620');
+    // roving guard
+    if (a.gNext <= 0) {
+      drawSpriteFlip(ctx, walkFrame(a.guard, t), a.gx, 112, a.gdir === 1);
+    }
+  };
+}
+
+function ctx_strip(c) {
+  c.fillStyle = '#8a7626';
+  for (let x = 0; x < W; x += 8) c.fillRect(x, 155, 4, 2);
 }
 
 // ---- THE GALLERY --------------------------------------------------------------

@@ -512,7 +512,13 @@ export const paintScene = {
     // cover, all along the block — duck behind any of them with H
     if (s.hidden) drawSpriteFlip(ctx, s.kid.idle[0], Math.round(s.kidX), 106, false);
     for (const dx2 of s.dumpsters) {
-      if (s.spot.kind === 'gallery') {
+      if (s.spot.kind === 'station') {
+        // I-beam columns hold the street up
+        rect(ctx, dx2 + 8, 14, 12, 124, '#3a4a3e');
+        rect(ctx, dx2 + 8, 14, 3, 124, '#4c5e50');
+        rect(ctx, dx2 + 6, 130, 16, 6, '#2c3830');
+        rect(ctx, dx2 + 6, 14, 16, 4, '#2c3830');
+      } else if (s.spot.kind === 'gallery') {
         rect(ctx, dx2, 106, 30, 32, '#f2efe8');
         frame(ctx, dx2, 106, 30, 32, '#c9c4b8');
         rect(ctx, dx2 + 14, 108, 1, 28, '#ddd8cc');

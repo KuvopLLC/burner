@@ -236,12 +236,12 @@ export function startAmbience(kind) {
   const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
   s.buffer = getNoise(); s.loop = true;
   f.type = 'lowpass';
-  f.frequency.value = kind === 'train' ? 95 : 150;
-  g.gain.value = kind === 'train' ? 0.09 : 0.035;
+  f.frequency.value = (kind === 'train' || kind === 'station') ? 95 : 150;
+  g.gain.value = (kind === 'train' || kind === 'station') ? 0.09 : 0.035;
   // slow swell so the rumble breathes
   const lfo = ac.createOscillator(), lg = ac.createGain();
   lfo.frequency.value = 0.13;
-  lg.gain.value = kind === 'train' ? 0.04 : 0.012;
+  lg.gain.value = (kind === 'train' || kind === 'station') ? 0.04 : 0.012;
   lfo.connect(lg).connect(g.gain);
   s.connect(f).connect(g).connect(master);
   s.start(); lfo.start();

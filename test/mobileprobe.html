@@ -20,7 +20,8 @@ setInterval(() => {
       G.run = w.newRun('ZEKE', 77);
       G.run.partner = d.PARTNERS[4];
       G.run.piece = g.makePiece('ZEKE', 4242, 'KWIK 12');
-      G.run.spot = d.SPOTS[0];
+      const spotId = new URLSearchParams(location.search).get('spot');
+      G.run.spot = d.SPOTS.find(sp => sp.id === spotId) || d.SPOTS[0];
       G.go('paint');
     });
   }

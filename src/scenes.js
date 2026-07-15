@@ -461,7 +461,7 @@ const mapScene = {
 
     // spots
     this.spots.forEach((s, i) => {
-      const col = s.kind === 'train' ? '#ff4070' : s.kind === 'gallery' ? '#c8c8d8' : '#ffd94a';
+      const col = s.kind === 'train' ? '#ff4070' : s.kind === 'gallery' ? '#c8c8d8' : s.kind === 'station' ? '#39c8e0' : '#ffd94a';
       const blink = Math.sin(this.t * 5 + i) > 0;
       rect(ctx, MAP_X + s.x - 1, s.y - 1, 3, 3, blink || i === this.sel ? col : '#6a6a55');
       if (i === this.sel) frame(ctx, MAP_X + s.x - 3, s.y - 3, 7, 7, col);
