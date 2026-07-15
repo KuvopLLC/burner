@@ -14,16 +14,25 @@ const SWIPE_MS = 400;     // within this long
 const TAP_SLOP = 10;      // movement under this is still a tap
 
 export function bindInput(canvas, G, toGame, onFirstInteract) {
-  let start = null; // {x, y, t, id}
+  const starts = new Map();   // pointerId -> {x, y, t}
+  const consumed = new Set(); // pointerIds owned by on-screen buttons
 
   canvas.style.touchAction = 'none';
 
   canvas.addEventListener('pointerdown', e => {
     onFirstInteract();
+    if (IS_TOUCH && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+    }
     const p = toGame(e);
     G.mouse.x = p.x; G.mouse.y = p.y;
     G.mouse.down = true;
-    start = { x: p.x, y: p.y, t: performance.now(), id: e.pointerId };
+    // thumb buttons get first claim on the pointer
+    if (G.scene && G.scene.pointerDown && G.scene.pointerDown(G, p.x, p.y, e.pointerId)) {
+      consumed.add(e.pointerId);
+    } else {
+      starts.set(e.pointerId, { x: p.x, y: p.y, t: performance.now() });
+    }
     canvas.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
@@ -35,11 +44,17 @@ export function bindInput(canvas, G, toGame, onFirstInteract) {
 
   canvas.addEventListener('pointerup', e => {
     G.mouse.down = false;
-    if (!start || e.pointerId !== start.id) return;
+    if (consumed.has(e.pointerId)) {
+      consumed.delete(e.pointerId);
+      if (G.scene && G.scene.pointerUp) G.scene.pointerUp(G, e.pointerId);
+      return;
+    }
+    const start = starts.get(e.pointerId);
+    if (!start) return;
+    starts.delete(e.pointerId);
     const p = toGame(e);
     const dx = p.x - start.x, dy = p.y - start.y;
     const dt = performance.now() - start.t;
-    start = null;
 
     const vert = Math.abs(dy) > Math.abs(dx);
     if (dt < SWIPE_MS && Math.max(Math.abs(dx), Math.abs(dy)) >= SWIPE_PX) {
@@ -58,9 +73,13 @@ export function bindInput(canvas, G, toGame, onFirstInteract) {
     }
   });
 
-  canvas.addEventListener('pointercancel', () => {
+  canvas.addEventListener('pointercancel', e => {
     G.mouse.down = false;
-    start = null;
+    starts.delete(e.pointerId);
+    if (consumed.has(e.pointerId)) {
+      consumed.delete(e.pointerId);
+      if (G.scene && G.scene.pointerUp) G.scene.pointerUp(G, e.pointerId);
+    }
   });
 
   canvas.addEventListener('contextmenu', e => e.preventDefault());

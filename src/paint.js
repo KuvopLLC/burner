@@ -111,6 +111,13 @@ export const paintScene = {
       fireHeld: false, autoT: 0,
       moveL: false, moveR: false, facing: 1,
       order: null,        // {x, py?, rid?} — tap says go here (and paint this)
+      pads: IS_TOUCH ? {
+        jump:  { x: 6,   y: 144, w: 46, h: 32 },
+        hide:  { x: 6,   y: 180, w: 46, h: 32 },
+        left:  { x: 286, y: 144, w: 44, h: 68 },
+        right: { x: 334, y: 144, w: 44, h: 68 },
+      } : null,
+      padHeld: {},        // pointerId -> 'left' | 'right'
       dumpsters: [24, 118, 212, 306],
       hidden: false,
       taughtCop: false, taughtDog: false,
@@ -124,7 +131,7 @@ export const paintScene = {
       },
       ped: null,
       pedTimer: 5 + rng() * 6,
-      msg: IS_TOUCH ? 'TAP THE WALL · SWIPE UP JUMP · DOWN HIDE'
+      msg: IS_TOUCH ? 'HOLD > TO WALK · STAND STILL TO PAINT'
         : 'CLICK THE WALL · SPACE JUMP · H HIDE',
       msgT: 5,
       sprayT: 0,
@@ -220,12 +227,14 @@ export const paintScene = {
     // nearest patch that wants the can in your hand
     updateAim(s);
 
-    // hold X to keep spraying (not from behind a dumpster)
-    if (s.fireHeld && !s.flood && !s.hidden) {
+    // the can works on its own when you stand at the wall: standing
+    // still with work in reach = spraying. X/click just hurry it.
+    const standing = mv === 0 && !s.airborne && !s.hidden && !s.flood && !s.order;
+    if ((s.fireHeld || standing) && !s.flood && !s.hidden) {
       s.autoT -= dt;
-      if (s.autoT <= 0) {
-        burst(G, s);
-        s.autoT = 0.15;
+      if (s.autoT <= 0 && s.aim && Math.abs((s.aim.x) - (s.kidX + 10)) <= s.burstR + 26) {
+        burst(G, s, !s.fireHeld); // standing = trickle; X/click = the real thing
+        s.autoT = s.fireHeld ? 0.15 : 0.35;
       }
     } else {
       s.autoT = 0;
@@ -408,6 +417,31 @@ export const paintScene = {
     } else if (e.key === 'ArrowLeft') {
       s.moveL = false;
     }
+  },
+
+  // thumb pads claim pointers before tap/swipe logic sees them
+  pointerDown(G, x, y, id) {
+    const s = this.s;
+    if (!s.pads || s.dead || s.done) return false;
+    const hit = Object.entries(s.pads).find(([, r]) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+    if (!hit) return false;
+    const name = hit[0];
+    if (name === 'jump') this.swipe(G, -1);
+    else if (name === 'hide') hideNow(s);
+    else {
+      s.padHeld[id] = name;
+      s.order = null;
+      if (name === 'left') s.moveL = true; else s.moveR = true;
+    }
+    return true;
+  },
+
+  pointerUp(G, id) {
+    const s = this.s;
+    const name = s.padHeld[id];
+    if (!name) return;
+    delete s.padHeld[id];
+    if (name === 'left') s.moveL = false; else s.moveR = false;
   },
 
   // a tap is a work order: walk there — and if it lands on paintable
@@ -608,24 +642,50 @@ export const paintScene = {
       const regs = [1, 2, 3, 4, 5];
       const stripW = regs.length * 26 + 10;
       const stripX = (W - stripW) / 2;
-      panel(ctx, stripX, 198, stripW, 15, '#101018', '#3a3a52');
+      const stripY = IS_TOUCH ? 186 : 198;
+      panel(ctx, stripX, stripY, stripW, 15, '#101018', '#3a3a52');
       regs.forEach((rid2, i) => {
         const cx = stripX + 6 + i * 26;
         const col = s.piece.palette[rid2];
         const inHand = s.bag[s.selected] && s.bag[s.selected].id === col.id && !s.regDone[rid2];
-        rect(ctx, cx, 201, 9, 9, col.hex);
-        if (inHand) frame(ctx, cx - 1, 200, 11, 11, '#fff');
+        rect(ctx, cx, stripY + 3, 9, 9, col.hex);
+        if (inHand) frame(ctx, cx - 1, stripY + 2, 11, 11, '#fff');
         if (s.regDone[rid2]) {
           ctx.globalAlpha = 0.55;
-          rect(ctx, cx, 201, 9, 9, '#0b0b12');
+          rect(ctx, cx, stripY + 3, 9, 9, '#0b0b12');
           ctx.globalAlpha = 1;
-          text(ctx, '✓', cx + 11, 201, '#40cc50');
+          text(ctx, '✓', cx + 11, stripY + 3, '#40cc50');
         } else {
           const frac2 = s.regCov[rid2] / Math.max(1, s.piece.counts[rid2]);
-          rect(ctx, cx + 11, 205, 8, 3, '#26263a');
-          rect(ctx, cx + 11, 205, Math.round(8 * frac2), 3, '#8a8a96');
+          rect(ctx, cx + 11, stripY + 7, 8, 3, '#26263a');
+          rect(ctx, cx + 11, stripY + 7, Math.round(8 * frac2), 3, '#8a8a96');
         }
       });
+    }
+
+    // thumb rests (touch): left = jump/hide, right = walk
+    if (s.pads && !s.dead && !s.done) {
+      ctx.globalAlpha = 0.42;
+      for (const [name, r] of Object.entries(s.pads)) {
+        const held = (name === 'left' && s.moveL) || (name === 'right' && s.moveR);
+        rect(ctx, r.x, r.y, r.w, r.h, held ? '#2c2c4a' : '#14141f');
+        frame(ctx, r.x, r.y, r.w, r.h, held ? '#8a8ac0' : '#3a3a52');
+      }
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = '#c8c8d8';
+      const tri = (cx, cy, dir, sz) => {
+        for (let i = 0; i < sz; i++) {
+          if (dir === 'up') ctx.fillRect(cx - i, cy + i, i * 2 + 1, 1);
+          if (dir === 'down') ctx.fillRect(cx - i, cy - i, i * 2 + 1, 1);
+          if (dir === 'left') ctx.fillRect(cx + i, cy - i, 1, i * 2 + 1);
+          if (dir === 'right') ctx.fillRect(cx - i, cy - i, 1, i * 2 + 1);
+        }
+      };
+      tri(s.pads.jump.x + 23, s.pads.jump.y + 12, 'up', 7);
+      tri(s.pads.hide.x + 23, s.pads.hide.y + 20, 'down', 7);
+      tri(s.pads.left.x + 26, s.pads.left.y + 34, 'left', 8);
+      tri(s.pads.right.x + 18, s.pads.right.y + 34, 'right', 8);
+      ctx.globalAlpha = 1;
     }
 
     if (s.msgT > 0) {
@@ -802,15 +862,23 @@ function hideNow(s) {
   }
 }
 
-// X on the keyboard: spray whatever this stretch of wall needs.
-function burst(G, s) {
+// Spray whatever this stretch of wall needs. trickle=true (idle
+// auto-spray) keeps it to a small burst — the flood is a deliberate
+// act: a tap on the wall, X, or a click.
+function burst(G, s, trickle = false) {
   if (s.done || s.dead || s.flood || s.hidden) return;
   if (!s.aim) {
-    if (s.msgT <= 0) say(s, 'NOTHING TO PAINT HERE — WALK THE WALL');
-    sfxTick();
+    if (!trickle && s.msgT <= 0) say(s, 'NOTHING TO PAINT HERE — WALK THE WALL');
+    if (!trickle) sfxTick();
     return;
   }
   autoCan(s, s.aim.rid);
+  if (trickle && s.powered) {
+    // idle painting: steady small work, no cascade
+    const { hit, doneRid } = applyBurst(s, s.aim.x, s.aim.y, s.piece.palette[s.aim.rid].id, s.burstR);
+    if (hit > 0) { G.run.bursts++; afterBurst(s, hit, doneRid, s.aim.x, s.aim.y); }
+    return;
+  }
   burstAt(G, s, s.aim.x - PX, s.aim.y - PY, s.aim.rid);
 }
 
