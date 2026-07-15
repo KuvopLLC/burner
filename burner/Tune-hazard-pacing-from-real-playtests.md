@@ -2,7 +2,7 @@
 title: Tune hazard pacing from real playtests
 type: feature
 created: "2026-07-13T18:04:54Z"
-modified: "2026-07-13T18:04:54Z"
+modified: "2026-07-15T10:39:10Z"
 author: Matthew Reider
 status: unstarted
 project: burner

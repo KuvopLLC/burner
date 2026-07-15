@@ -10,6 +10,7 @@ import { COLORS, PED_LINES } from './data.js';
 import { makeRng, pick, irange } from './rng.js';
 import { makeKid, makeCop, makeDog, makePedestrian, renderSketch, renderPiece, pieceShade } from './gen.js';
 import { makeScenery, drawSpriteFlip, idleFrame, walkFrame } from './scenery.js';
+import { IS_TOUCH } from './input.js';
 import { addPiece, level } from './world.js';
 import { sfxSpray, sfxSiren, sfxWhistle, sfxBust, sfxPop, sfxTick, sfxBark, sfxRattle, sfxTwinkle, sfxHit, sfxPower, playBeat, startAmbience } from './audio.js';
 
@@ -123,7 +124,8 @@ export const paintScene = {
       },
       ped: null,
       pedTimer: 5 + rng() * 6,
-      msg: 'TAP THE WALL TO PAINT · SWIPE UP JUMP · DOWN HIDE',
+      msg: IS_TOUCH ? 'TAP THE WALL · SWIPE UP JUMP · DOWN HIDE'
+        : 'CLICK THE WALL · SPACE JUMP · H HIDE',
       msgT: 5,
       sprayT: 0,
       fx: [],
@@ -422,8 +424,9 @@ export const paintScene = {
       : { x: walkX };
   },
 
-  swipe(G, dir) {
+  swipe(G, dir, axis = 'y') {
     const s = this.s;
+    if (axis !== 'y') return;
     if (s.dead || s.done) return;
     if (dir < 0) { // up: jump
       if (!s.airborne) {

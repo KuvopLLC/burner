@@ -11,10 +11,14 @@ ctx.imageSmoothingEnabled = false;
 
 let scale = 1;
 function fit() {
-  scale = Math.max(1, Math.floor(Math.min(window.innerWidth / W, window.innerHeight / H)));
+  const raw = Math.min(window.innerWidth / W, window.innerHeight / H);
+  // crisp integer scale when the screen is big; fill the screen when
+  // it's a phone (slightly soft beats postage-stamp)
+  scale = raw >= 3 ? Math.floor(raw) : Math.max(0.5, raw);
   canvas.style.width = W * scale + 'px';
   canvas.style.height = H * scale + 'px';
 }
+window.addEventListener('orientationchange', () => setTimeout(fit, 250));
 window.addEventListener('resize', fit);
 fit();
 

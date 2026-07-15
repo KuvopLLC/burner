@@ -2,12 +2,15 @@
 title: Tap-to-paint core - unified gesture input, auto-can, mouse returns
 type: feature
 created: "2026-07-15T09:58:00Z"
-modified: "2026-07-15T10:30:48Z"
+modified: "2026-07-15T10:38:56Z"
 author: Matthew Reider
-status: started
+status: accepted
 estimate: "8"
 project: burner
 started: "2026-07-15T10:30:48Z"
+finished: "2026-07-15T10:38:56Z"
+delivered: "2026-07-15T10:38:56Z"
+accepted: "2026-07-15T10:38:56Z"
 ---
 
 ## Problem statement

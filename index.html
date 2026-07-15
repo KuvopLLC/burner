@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>BURNER</title>
 <style>
   html, body {
@@ -10,16 +10,32 @@
     background: #0a0a0f;
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
+    overscroll-behavior: none;
+    position: fixed; inset: 0;
   }
   canvas {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     cursor: crosshair;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+  }
+  #rotate {
+    display: none;
+    position: fixed; inset: 0; z-index: 10;
+    background: #0c0c1e; color: #ffe040;
+    font: bold 18px monospace; letter-spacing: 2px;
+    align-items: center; justify-content: center;
+    text-align: center; line-height: 2;
+  }
+  @media (orientation: portrait) and (pointer: coarse) {
+    #rotate { display: flex; }
   }
 </style>
 </head>
 <body>
 <canvas id="screen" width="384" height="216"></canvas>
+<div id="rotate">ROTATE YOUR PHONE<br>&#8634;<br>THE BRONX IS WIDE</div>
 <div id="ts-slot" style="position:absolute;left:-9999px;top:0"></div>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <script type="module" src="src/main.js"></script>

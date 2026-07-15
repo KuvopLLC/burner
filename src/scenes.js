@@ -12,6 +12,7 @@ import { drawSpriteFlip, idleFrame } from './scenery.js';
 import { buildBronxMap, MAP_H } from './bronx.js';
 import { playBeat, stopBeat, stopAmbience, sfxPop, sfxTick, sfxChime, sfxDoorSlide } from './audio.js';
 import { submitScore, fetchScores } from './net.js';
+import { IS_TOUCH } from './input.js';
 
 function hashStr(s) {
   let h = 2166136261;
@@ -122,6 +123,14 @@ const titleScene = {
       try { window.open('https://github.com/KuvopLLC/burner/issues', '_blank'); } catch (err) { /* headless */ }
     }
   },
+  tap(G, x, y) {
+    this.idle = 0;
+    if (y > 198) {
+      try { window.open('https://github.com/KuvopLLC/burner/issues', '_blank'); } catch (err) { /* headless */ }
+      return;
+    }
+    G.go('name');
+  },
   draw(G, ctx) {
     rect(ctx, 0, 0, W, H, '#0c0c1e');
     drawTwinkles(ctx, this.t, 4242, 34, 0, 110);
@@ -168,15 +177,44 @@ const titleScene = {
         scenter(ctx, line, 131 + i * 11, i === 0 ? '#ffe040' : '#fff');
       });
     }
-    if (Math.sin(this.t * 4) > -0.2) scenter(ctx, 'PRESS ENTER', 188, '#ffe040');
-    scenter(ctx, '© 1986 KUVOP · [G] GITHUB', 205, '#666');
+    if (Math.sin(this.t * 4) > -0.2) scenter(ctx, IS_TOUCH ? 'TAP TO WRITE' : 'PRESS ENTER', 188, '#ffe040');
+    scenter(ctx, IS_TOUCH ? '© 1986 KUVOP · TAP HERE FOR GITHUB' : '© 1986 KUVOP · [G] GITHUB', 205, '#666');
   },
 };
 
 // ---- NAME -----------------------------------------------------------------
 
+const GRID_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const GRID_COLS = 12, GRID_X = (W - 12 * 26) / 2, GRID_Y = 92, CELL_W = 26, CELL_H = 17;
+
 const nameScene = {
   enter() { this.tag = ''; this.t = 0; this.preview = null; this.stale = true; },
+  commit(G) {
+    if (this.tag.length < 2) return;
+    const seed = (hashStr(this.tag) ^ Date.now()) >>> 0;
+    G.run = newRun(this.tag, seed);
+    G.go('partner');
+  },
+  tap(G, x, y) {
+    if (!IS_TOUCH) { this.commit(G); return; }
+    // the letter grid
+    if (y >= GRID_Y && y < GRID_Y + 3 * CELL_H) {
+      const col = Math.floor((x - GRID_X) / CELL_W);
+      const row = Math.floor((y - GRID_Y) / CELL_H);
+      const idx = row * GRID_COLS + col;
+      if (col >= 0 && col < GRID_COLS && idx < GRID_CHARS.length && this.tag.length < 8) {
+        this.tag += GRID_CHARS[idx];
+        this.stale = true;
+        sfxTick();
+      }
+      return;
+    }
+    // DEL / END row
+    if (y >= GRID_Y + 3 * CELL_H + 4 && y < GRID_Y + 3 * CELL_H + 22) {
+      if (x < W / 2 - 8) { this.tag = this.tag.slice(0, -1); this.stale = true; }
+      else this.commit(G);
+    }
+  },
   update(G, dt) {
     this.t += dt;
     if (this.stale) {
@@ -190,11 +228,7 @@ const nameScene = {
     const k = e.key.toUpperCase();
     if (/^[A-Z0-9]$/.test(k) && this.tag.length < 8) { this.tag += k; this.stale = true; sfxTick(); }
     if (e.key === 'Backspace') { this.tag = this.tag.slice(0, -1); this.stale = true; }
-    if (e.key === 'Enter' && this.tag.length >= 2) {
-      const seed = (hashStr(this.tag) ^ Date.now()) >>> 0;
-      G.run = newRun(this.tag, seed);
-      G.go('partner');
-    }
+    if (e.key === 'Enter') this.commit(G);
   },
   draw(G, ctx) {
     rect(ctx, 0, 0, W, H, '#0c0c1e');
@@ -212,13 +246,29 @@ const nameScene = {
       rect(ctx, sx, 74, 12, 2,
         isCursor && Math.sin(this.t * 6) > 0 ? '#ffe040' : i < this.tag.length ? '#39c8e0' : '#33334a');
     }
-    if (this.preview) {
-      // how it's going to look on a wall
-      ctx.drawImage(this.preview, 72, 90, 240, 90);
+    if (IS_TOUCH) {
+      // the letter grid: fat targets, arcade initials style
+      for (let i = 0; i < GRID_CHARS.length; i++) {
+        const gx = GRID_X + (i % GRID_COLS) * CELL_W;
+        const gy = GRID_Y + Math.floor(i / GRID_COLS) * CELL_H;
+        panel(ctx, gx + 1, gy + 1, CELL_W - 3, CELL_H - 3, '#14142a', '#33334a');
+        stext(ctx, GRID_CHARS[i], gx + Math.floor((CELL_W - 8) / 2), gy + 5, '#fff');
+      }
+      const ry = GRID_Y + 3 * CELL_H + 4;
+      panel(ctx, GRID_X, ry, 150, 17, '#14142a', '#5a3a3a');
+      stext(ctx, 'DEL', GRID_X + 62, ry + 5, '#ff8080');
+      panel(ctx, W / 2 + 6, ry, 150, 17, '#14142a', '#3a5a3a');
+      stext(ctx, this.tag.length >= 2 ? 'END' : '...', W / 2 + 6 + 64, ry + 5, this.tag.length >= 2 ? '#40e050' : '#555');
+      if (this.preview) ctx.drawImage(this.preview, (W - 120) / 2, 168, 120, 45);
     } else {
-      scenter(ctx, '. . .', 126, '#33334a', 2);
+      if (this.preview) {
+        // how it's going to look on a wall
+        ctx.drawImage(this.preview, 72, 90, 240, 90);
+      } else {
+        scenter(ctx, '. . .', 126, '#33334a', 2);
+      }
+      if (this.tag.length >= 2 && Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] THAT\'S ME', 198, '#ffe040');
     }
-    if (this.tag.length >= 2 && Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] THAT\'S ME', 198, '#ffe040');
   },
 };
 
@@ -391,6 +441,19 @@ const mapScene = {
       G.go('doors');
     }
   },
+  tap(G, x, y) {
+    // info bar (or the selected spot again) = GO
+    if (y >= MAP_H) { G.run.spot = this.spots[this.sel]; G.go('doors'); return; }
+    let best = -1, bd = 1e9;
+    this.spots.forEach((s2, i) => {
+      const d = (MAP_X + s2.x - x) ** 2 + (s2.y - y) ** 2;
+      if (d < bd) { bd = d; best = i; }
+    });
+    if (best >= 0 && bd < 30 * 30) {
+      if (best === this.sel) { G.run.spot = this.spots[this.sel]; G.go('doors'); }
+      else { this.sel = best; sfxTick(); }
+    }
+  },
   draw(G, ctx) {
     // the asset is 320 wide; center it and let the water continue
     rect(ctx, 0, 0, W, MAP_H, '#0e1c30');
@@ -416,7 +479,7 @@ const mapScene = {
     rect(ctx, 0, MAP_H, W, 1, '#32324a');
     text(ctx, s.name + (s.line ? ` (${s.line})` : ''), 8, 190, '#fff');
     text(ctx, 'DANGER ' + (s.danger ? '★'.repeat(s.danger) : 'NONE'), 232, 190, '#ff5030');
-    if (Math.sin(this.t * 4) > -0.3) text(ctx, '[ENTER] GO', 316, 190, '#ffe040');
+    if (Math.sin(this.t * 4) > -0.3) text(ctx, IS_TOUCH ? 'TAP GO' : '[ENTER] GO', 316, 190, '#ffe040');
     drawCrewCorner(G, ctx);
   },
 };
@@ -425,6 +488,12 @@ const mapScene = {
 
 const bookScene = {
   enter(G) { this.page = Math.max(0, Math.ceil(G.run.pieces.length / 2) - 1); },
+  swipe(G, dir, axis = 'y') {
+    if (axis !== 'x') return;
+    const maxPage = Math.max(0, Math.ceil(G.run.pieces.length / 2) - 1);
+    // swipe left = next page, like flipping paper
+    this.page = Math.max(0, Math.min(maxPage, this.page + (dir < 0 ? 1 : -1)));
+  },
   key(G, e) {
     if (e.type !== 'down') return;
     const maxPage = Math.max(0, Math.ceil(G.run.pieces.length / 2) - 1);
@@ -454,7 +523,7 @@ const bookScene = {
     text(ctx, `PAGE ${this.page + 1}`, 182, 166, '#8a7a5a');
     const n = run.pieces.length;
     scenter(ctx, `${n} UP · ${'♥'.repeat(Math.max(0, run.hearts))}`, 186, '#ffe040');
-    scenter(ctx, '< > FLIP · [ENTER] CLOSE', 202, '#9a9aa8');
+    scenter(ctx, IS_TOUCH ? 'SWIPE FLIPS · TAP CLOSES' : '< > FLIP · [ENTER] CLOSE', 202, '#9a9aa8');
   },
 };
 
@@ -472,6 +541,10 @@ const intermissionScene = {
     if (e.type !== 'down') return;
     if (e.key === 'Enter') { G.run.partner = null; G.go('partner'); }
     if (e.key === 'b' || e.key === 'B') { G.bookReturn = 'intermission'; G.go('book'); }
+  },
+  tap(G, x, y) {
+    if (y >= 134) { G.bookReturn = 'intermission'; G.go('book'); }
+    else { G.run.partner = null; G.go('partner'); }
   },
   draw(G, ctx) {
     const run = G.run;
@@ -512,8 +585,8 @@ const intermissionScene = {
     for (let i = 0; i < 3; i++) {
       stext(ctx, '♥', W / 2 - 16 + i * 12, 58, i < run.hearts ? '#ff4050' : '#33334a');
     }
-    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, '[ENTER] PAINT', 122, '#ffe040');
-    scenter(ctx, '[B] THE BOOK', 140, '#c0a060');
+    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, IS_TOUCH ? 'TAP TO PAINT' : '[ENTER] PAINT', 122, '#ffe040');
+    scenter(ctx, IS_TOUCH ? 'TAP HERE: THE BOOK' : '[B] THE BOOK', 140, '#c0a060');
   },
 };
 
@@ -559,7 +632,7 @@ const gameoverScene = {
       scenter(ctx, line, 100 + i * 13, '#fff');
     });
     if (this.isKing && n > 0) scenter(ctx, '*** KING OF THE LINE ***', 162, '#40e050');
-    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, 'PRESS ENTER', 192, '#ffe040');
+    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, IS_TOUCH ? 'TAP' : 'PRESS ENTER', 192, '#ffe040');
   },
 };
 
@@ -716,7 +789,7 @@ const demoScene = {
   draw(G, ctx) {
     paintScene.draw(G, ctx);
     if (Math.sin(this.t * 3) > -0.2) scenter(ctx, 'D E M O', 66, '#fff', 2);
-    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, 'PRESS ENTER', 166, '#ffe040');
+    if (Math.sin(this.t * 4) > -0.3) scenter(ctx, IS_TOUCH ? 'TAP TO TAKE OVER' : 'PRESS ENTER', 166, '#ffe040');
   },
 };
 

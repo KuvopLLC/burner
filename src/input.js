@@ -6,6 +6,9 @@
 // Scenes receive tap(G, x, y) and swipe(G, dir). A scene with no tap
 // handler gets a synthesized ENTER, so every menu is a button.
 
+export const IS_TOUCH = (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) ||
+  (typeof location !== 'undefined' && location.search.includes('touch'));
+
 const SWIPE_PX = 24;      // game-pixels of travel that make a swipe
 const SWIPE_MS = 400;     // within this long
 const TAP_SLOP = 10;      // movement under this is still a tap
@@ -38,10 +41,13 @@ export function bindInput(canvas, G, toGame, onFirstInteract) {
     const dt = performance.now() - start.t;
     start = null;
 
-    if (dt < SWIPE_MS && Math.abs(dy) >= SWIPE_PX && Math.abs(dy) > Math.abs(dx)) {
-      if (G.scene && G.scene.swipe) G.scene.swipe(G, dy < 0 ? -1 : 1);
+    const vert = Math.abs(dy) > Math.abs(dx);
+    if (dt < SWIPE_MS && Math.max(Math.abs(dx), Math.abs(dy)) >= SWIPE_PX) {
+      const dir = vert ? (dy < 0 ? -1 : 1) : (dx < 0 ? -1 : 1);
+      const axis = vert ? 'y' : 'x';
+      if (G.scene && G.scene.swipe) G.scene.swipe(G, dir, axis);
       else if (G.scene && G.scene.key) {
-        // scenes without swipe handling: up behaves like ENTER too
+        // scenes without swipe handling: a flick behaves like ENTER
         G.scene.key(G, { type: 'down', key: 'Enter' });
       }
       return;
