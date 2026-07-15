@@ -94,7 +94,7 @@ const titleScene = {
   },
   newDrip(rng) {
     return {
-      x: 120 + Math.floor(rng() * 150), y0: 78 + Math.floor(rng() * 22),
+      x: 112 + Math.floor(rng() * 156), y0: 66 + Math.floor(rng() * 18),
       len: 6 + rng() * 16, y: 0, sp: 2.5 + rng() * 5,
       color: this.dripCols[Math.floor(rng() * this.dripCols.length)],
       hold: 1.5 + rng() * 2, fade: 1,
@@ -147,7 +147,7 @@ const titleScene = {
     }
     drawHeader(G, ctx, this.t);
     // the burner itself, painted by the same hands as every piece
-    ctx.drawImage(this.logo, 72, 24);
+    ctx.drawImage(this.logo, 96, 24, 192, 72);
     // paint runs: they run, bead up, dry, and new ones form
     for (const d of this.drips) {
       ctx.globalAlpha = Math.max(0, Math.min(1, d.fade));
@@ -157,15 +157,15 @@ const titleScene = {
       ctx.fillRect(d.x, d.y0 + yLen, 2, 2); // the bead at the tip
       ctx.globalAlpha = 1;
     }
-    scenter(ctx, 'GET UP. STAY UP.', 126, '#39c8e0');
+    scenter(ctx, 'GET UP. STAY UP.', 104, '#39c8e0');
     const board = this.kings
       ? this.kings.map(k => ({ tag: k.tag, piecesUp: k.up }))
       : this.hs;
     if (board.length) {
-      if (this.kings) scenter(ctx, "- TONIGHT'S KINGS -", 130, '#ff4040');
-      board.slice(0, 3).forEach((h, i) => {
+      if (this.kings) scenter(ctx, "- TONIGHT'S KINGS -", 118, '#ff4040');
+      board.slice(0, 5).forEach((h, i) => {
         const line = `${h.tag.padEnd(10, '.')}${String(h.piecesUp).padStart(3, '.')} UP`;
-        scenter(ctx, line, 142 + i * 12, i === 0 ? '#ffe040' : '#fff');
+        scenter(ctx, line, 131 + i * 11, i === 0 ? '#ffe040' : '#fff');
       });
     }
     if (Math.sin(this.t * 4) > -0.2) scenter(ctx, 'PRESS ENTER', 188, '#ffe040');

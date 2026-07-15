@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>body{margin:0;background:#000;display:flex}canvas{image-rendering:pixelated}</style></head>
+<body><canvas id="screen" width="384" height="216"></canvas>
+<script type="module">
+import '../src/main.js';
+setTimeout(() => {
+  const G = window.BURNER;
+  G.scene.kings = [{tag:'ZEKE',up:7},{tag:'CHINO',up:4},{tag:'KWIK',up:3},{tag:'SABLE',up:2},{tag:'RONDO',up:1}];
+}, 200);
+setInterval(() => { const G = window.BURNER; if (G) G.step(0.1); }, 100);
+</script></body></html>

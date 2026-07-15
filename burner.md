@@ -18,7 +18,9 @@
 |  | [Subway station as a fourth spot kind](burner/Subway-station-as-a-fourth-spot-kind.md) |  |  |
 |  | [Tune hazard pacing from real playtests](burner/Tune-hazard-pacing-from-real-playtests.md) |  |  |
 |  | [Whole-car pieces multi-night burners](burner/Whole-car-pieces-multi-night-burners.md) |  |  |
-| Total Points | | 0 | |
+|  | [Mobile presentation - scaling, orientation, tap menus, letter-grid name entry](burner/Mobile-presentation-scaling-orientation-tap-menus-letter-grid-name-entry.md) | 5 |  |
+|  | [Tap-to-paint core - unified gesture input, auto-can, mouse returns](burner/Tap-to-paint-core-unified-gesture-input-auto-can-mouse-returns.md) | 8 |  |
+| Total Points | | 13 | |
 
 ### Started
 | User | Title | Points | Tags |
@@ -34,6 +36,7 @@
 |  | [Fun pass - cop patrol, partner paints with you, autofire, title piece, door seam, demo mode](burner/Fun-pass-cop-patrol-partner-paints-with-you-autofire-title-piece-door-seam-demo-mode.md) | 8 |  |
 |  | [Mario-style play - contact enemies, jumping, power states, gear pickups, hearts](burner/Mario-style-play-contact-enemies-jumping-power-states-gear-pickups-hearts.md) | 8 |  |
 |  | [Style engine - study blackbookgraffiti and generate killer varied burners](burner/Style-engine-study-blackbookgraffiti-and-generate-killer-varied-burners.md) | 8 |  |
+|  | [Deploy to Cloudflare with nightly NYC leaderboard, turnstile flood control, github link, readme](burner/Deploy-to-Cloudflare-with-nightly-NYC-leaderboard-turnstile-flood-control-github-link-readme.md) | 8 |  |
 
 ### Accepted
 | User | Title | Points | Tags |
