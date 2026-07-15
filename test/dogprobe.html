@@ -24,7 +24,7 @@ setInterval(() => {
   else if (G.sceneName === 'map') key('Enter');
   else if (G.sceneName === 'doors') key('Enter');
   else if (G.sceneName === 'paint' && s) {
-    s.kidX = 182; // kid parked mid-wall
+    s.kidX = 216; // parked beside the dumpster at 212
     if (phase === 0) { // test 1: powered kid takes a dog hit -> loses flow, keeps hearts
       G.scene.spawnEnemy(s, 'dog', 1);
       phase = 1; console.log(`TEST1: dog released. powered=${s.powered} hearts=${G.run.hearts}`);

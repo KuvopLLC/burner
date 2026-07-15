@@ -80,6 +80,10 @@ setInterval(() => {
       if (el >= 300) key('Enter'); // roll them open
       break;
     case 'paint':
+      if (now % 10000 === 0) {
+        const st = sc.s;
+        console.log(`paint@${now} cov=${Math.round(100 * st.coveredCount / st.totalRegion)}% powered=${st.powered} hearts=${G.run.hearts} enemies=${st.enemies.length} order=${JSON.stringify(st.order)} flood=${!!st.flood} kid=${Math.round(st.kidX)}`);
+      }
       paintTick(G, sc.s);
       break;
     case 'result':
@@ -113,13 +117,19 @@ function paintTick(G, s) {
   if (!s || s.dead || s.done) return;
   const piece = G.run.piece, w = piece.w;
 
+  // play like a player: flee what's close, jump what's on top of you
   const kidC = s.kidX + 10;
+  let nearest = null, nd = 1e9;
   for (const e of s.enemies) {
-    if (Math.abs((e.x + 10) - kidC) < 36 && !s.airborne) {
-      if (!copSeen) { copSeen = true; console.log(`TROUBLE (${e.type}) @ ${now} — jumping`); }
-      key(' ');
-      break;
-    }
+    const d = Math.abs((e.x + 10) - kidC);
+    if (d < nd) { nd = d; nearest = e; }
+  }
+  if (nearest && nd < 64) {
+    if (!copSeen) { copSeen = true; console.log(`TROUBLE (${nearest.type}) @ ${now} — evading`); }
+    if (nd < 30 && !s.airborne) key(' ');           // on top of you: jump
+    const away = (nearest.x + 10) > kidC ? 60 : 324; // run the other way
+    G.scene.tap(G, away, 170);
+    return;
   }
 
   if (!plan) { plan = { cursor: 0, reg: null }; console.log(`PAINT START (r=${s.burstR})`); }
@@ -127,9 +137,6 @@ function paintTick(G, s) {
   if (!regs.length) return; // waiting for the auto-finish
   const reg = regs[0];
   if (plan.reg !== reg) { plan.reg = reg; plan.cursor = 0; }
-  const want = piece.palette[reg].id;
-  const canIdx = s.bag.findIndex(c => c.id === want);
-  if (canIdx >= 0 && s.selected !== canIdx) { key(String(canIdx + 1)); return; }
 
   const total = piece.w * piece.h;
   let found = -1, i = plan.cursor;
@@ -138,11 +145,15 @@ function paintTick(G, s) {
   }
   if (found < 0) return;
   plan.cursor = (found + 7) % total;
-  // walk into range, then spray (the smoke test may teleport its feet)
-  s.kidX = PXo + (found % w) - 10;
-  G.step(0.01);
-  key('x');
-  G.step(0.02);
+  // play it the tap way: order the work, hurry the walk along
+  if (!s.order && !s.flood) {
+    G.scene.tap(G, PXo + (found % w), PYo + ((found / w) | 0));
+    // smoke test teleports its feet — but never onto trouble
+    if (s.order && !s.enemies.some(e => Math.abs((e.x + 10) - (s.order.x + 10)) < 46)) {
+      s.kidX = s.order.x;
+    }
+    G.step(0.03);
+  }
 }
 </script>
 </body>

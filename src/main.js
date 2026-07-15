@@ -3,6 +3,7 @@
 import { W, H } from './gfx.js';
 import { SCENES } from './scenes.js';
 import { initAudio, resumeAudio } from './audio.js';
+import { bindInput } from './input.js';
 
 const canvas = document.getElementById('screen');
 const ctx = canvas.getContext('2d');
@@ -32,18 +33,10 @@ const G = {
   },
 };
 
-canvas.addEventListener('mousemove', e => {
+bindInput(canvas, G, e => {
   const r = canvas.getBoundingClientRect();
-  G.mouse.x = (e.clientX - r.left) / scale;
-  G.mouse.y = (e.clientY - r.top) / scale;
-});
-canvas.addEventListener('mousedown', e => {
-  initAudio(); resumeAudio();
-  G.mouse.down = true;
-  if (G.scene && G.scene.click) G.scene.click(G, G.mouse.x, G.mouse.y);
-});
-window.addEventListener('mouseup', () => { G.mouse.down = false; });
-canvas.addEventListener('contextmenu', e => e.preventDefault());
+  return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
+}, () => { initAudio(); resumeAudio(); });
 
 window.addEventListener('keydown', e => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();

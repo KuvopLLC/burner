@@ -691,7 +691,7 @@ const demoScene = {
     for (const e of s.enemies) {
       const eC = e.x + 10;
       if (Math.abs(eC - kidC) < 34 && !s.airborne) {
-        paintScene.key(G, { type: 'down', key: ' ' });
+        paintScene.swipe(G, -1);
         break;
       }
     }
@@ -706,18 +706,11 @@ const demoScene = {
     }
     if (found < 0) return;
     this.cursor = (found + 11) % total;
-    // walk to it, then spray
-    const tx = 72 + (found % s.piece.w) - 10;
-    const dx = tx - s.kidX;
-    s.moveR = dx > 4; s.moveL = dx < -4;
-    const want = s.piece.palette[reg].id;
-    const canIdx = s.bag.findIndex(c2 => c2.id === want);
-    if (canIdx >= 0) s.selected = canIdx;
+    // the demo plays the way a thumb would: tap the work
     this.burstT -= dt;
-    if (Math.abs(dx) < 24 && this.burstT <= 0) {
-      this.burstT = 0.25;
-      paintScene.key(G, { type: 'down', key: 'x' });
-      paintScene.key(G, { type: 'up', key: 'x' });
+    if (!s.order && !s.flood && this.burstT <= 0) {
+      this.burstT = 0.35;
+      paintScene.tap(G, 72 + (found % s.piece.w), 34 + Math.floor(found / s.piece.w));
     }
   },
   draw(G, ctx) {
