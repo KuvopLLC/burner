@@ -70,3 +70,8 @@
 2026-07-15T12:47:03Z	Matthew Reider	accepted	burner/Thumb-controls-hold-to-move-pad-jump-hide-buttons-fullscreen-safe-area.md	Pads verified at 844x390 (held states, glyphs, strip raised); caught and fixed auto-flood trivializing the game (96% in 4s -> trickle 3%); desktop regression clean. Real-thumb feel and fullscreen-on-rotate behavior need PM's phone.
 2026-07-15T12:52:59Z	Matthew Reider	chore	burner/One-time-Chrome-for-fullscreen-hint-on-browsers-without-the-API.md	target=priority position=top
 2026-07-15T12:52:59Z	Matthew Reider	started	burner/One-time-Chrome-for-fullscreen-hint-on-browsers-without-the-API.md	
+2026-07-15T12:53:58Z	Matthew Reider	accepted	burner/One-time-Chrome-for-fullscreen-hint-on-browsers-without-the-API.md	
+2026-07-15T12:53:58Z	Matthew Reider	accepted	burner/One-time-Chrome-for-fullscreen-hint-on-browsers-without-the-API.md	
+2026-07-15T12:53:58Z	Matthew Reider	accepted	burner/One-time-Chrome-for-fullscreen-hint-on-browsers-without-the-API.md	Feature-detect over UA-sniff; probe proves show-once persistence; deployed.
+2026-07-15T12:55:00Z	Matthew Reider	bug	burner/Cannot-choose-paint-color-on-mobile-add-tappable-color-buttons.md	target=priority position=top
+2026-07-15T12:55:00Z	Matthew Reider	started	burner/Cannot-choose-paint-color-on-mobile-add-tappable-color-buttons.md	

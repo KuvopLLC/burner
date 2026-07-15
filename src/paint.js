@@ -118,6 +118,14 @@ export const paintScene = {
         right: { x: 334, y: 144, w: 44, h: 68 },
       } : null,
       padHeld: {},        // pointerId -> 'left' | 'right'
+      lockRid: 0,         // 0 = auto; else: work THIS color first
+      colorBtns: (() => {
+        const bw = IS_TOUCH ? 30 : 20, bh = IS_TOUCH ? 24 : 15, gap = IS_TOUCH ? 6 : 4;
+        const total = 5 * bw + 4 * gap;
+        const x0 = (W - total) / 2;
+        const y0 = IS_TOUCH ? 184 : 198;
+        return [1, 2, 3, 4, 5].map((rid, i) => ({ rid, x: x0 + i * (bw + gap), y: y0, w: bw, h: bh }));
+      })(),
       dumpsters: [24, 118, 212, 306],
       hidden: false,
       taughtCop: false, taughtDog: false,
@@ -226,6 +234,8 @@ export const paintScene = {
     // where would X land? straight up from where you stand, on the
     // nearest patch that wants the can in your hand
     updateAim(s);
+
+    if (s.lockRid && s.regDone[s.lockRid]) s.lockRid = 0; // done — back to auto
 
     // the can works on its own when you stand at the wall: standing
     // still with work in reach = spraying. X/click just hurry it.
@@ -422,7 +432,15 @@ export const paintScene = {
   // thumb pads claim pointers before tap/swipe logic sees them
   pointerDown(G, x, y, id) {
     const s = this.s;
-    if (!s.pads || s.dead || s.done) return false;
+    if (s.dead || s.done) return false;
+    if (!s.pads) {
+      // desktop: the strip swatches are clickable
+      const cb = s.colorBtns.find(b => x >= b.x - 2 && x < b.x + b.w + 2 && y >= b.y - 2 && y < b.y + b.h + 2);
+      if (cb) { toggleLock(s, cb.rid); return true; }
+      return false;
+    }
+    const cb = s.colorBtns.find(b => x >= b.x - 2 && x < b.x + b.w + 2 && y >= b.y - 2 && y < b.y + b.h + 2);
+    if (cb) { toggleLock(s, cb.rid); return true; }
     const hit = Object.entries(s.pads).find(([, r]) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
     if (!hit) return false;
     const name = hit[0];
@@ -636,31 +654,27 @@ export const paintScene = {
     text(ctx, '★', 42, 14, s.powered ? '#ffe040' : '#3f3f50');
     drawCrewCorner(G, ctx);
 
-    // status strip: the five regions, done ones checked, the can in
-    // the kid's hand highlighted — nothing to press, just the truth
-    {
-      const regs = [1, 2, 3, 4, 5];
-      const stripW = regs.length * 26 + 10;
-      const stripX = (W - stripW) / 2;
-      const stripY = IS_TOUCH ? 186 : 198;
-      panel(ctx, stripX, stripY, stripW, 15, '#101018', '#3a3a52');
-      regs.forEach((rid2, i) => {
-        const cx = stripX + 6 + i * 26;
-        const col = s.piece.palette[rid2];
-        const inHand = s.bag[s.selected] && s.bag[s.selected].id === col.id && !s.regDone[rid2];
-        rect(ctx, cx, stripY + 3, 9, 9, col.hex);
-        if (inHand) frame(ctx, cx - 1, stripY + 2, 11, 11, '#fff');
-        if (s.regDone[rid2]) {
-          ctx.globalAlpha = 0.55;
-          rect(ctx, cx, stripY + 3, 9, 9, '#0b0b12');
-          ctx.globalAlpha = 1;
-          text(ctx, '✓', cx + 11, stripY + 3, '#40cc50');
-        } else {
-          const frac2 = s.regCov[rid2] / Math.max(1, s.piece.counts[rid2]);
-          rect(ctx, cx + 11, stripY + 7, 8, 3, '#26263a');
-          rect(ctx, cx + 11, stripY + 7, Math.round(8 * frac2), 3, '#8a8a96');
-        }
-      });
+    // color buttons: tap one to work that color first, tap again for
+    // auto. Done colors dim with a check; the locked one pulses.
+    for (const b of s.colorBtns) {
+      const col = s.piece.palette[b.rid];
+      const done = s.regDone[b.rid];
+      ctx.globalAlpha = done ? 0.5 : 0.88;
+      rect(ctx, b.x, b.y, b.w, b.h, '#101018');
+      rect(ctx, b.x + 2, b.y + 2, b.w - 4, b.h - 4, col.hex);
+      ctx.globalAlpha = 1;
+      if (done) {
+        stext(ctx, '✓', b.x + Math.floor(b.w / 2) - 3, b.y + Math.floor(b.h / 2) - 3, '#40cc50');
+      } else {
+        const frac2 = s.regCov[b.rid] / Math.max(1, s.piece.counts[b.rid]);
+        rect(ctx, b.x + 2, b.y + b.h - 3, Math.round((b.w - 4) * frac2), 2, '#0b0b12');
+      }
+      if (s.lockRid === b.rid) {
+        const pulse = Math.sin(s.pulse * 2) > 0;
+        frame(ctx, b.x - 1, b.y - 1, b.w + 2, b.h + 2, pulse ? '#fff' : '#ffe040');
+      } else if (!s.lockRid && s.aim && s.aim.rid === b.rid) {
+        frame(ctx, b.x, b.y, b.w, b.h, '#8a8a96'); // what auto is working
+      }
     }
 
     // thumb rests (touch): left = jump/hide, right = walk
@@ -794,11 +808,19 @@ function updateAim(s) {
       const i = y * wpx + x;
       const rid = s.piece.regions[i];
       if (!rid || s.covered[i] || s.regDone[rid]) continue;
+      if (s.lockRid && rid !== s.lockRid) continue; // you called this color
       const d = Math.abs(x - kx) * 3 + y;
       if (d < bestD) { bestD = d; best = { x, y, rid }; }
     }
   }
   s.aim = best ? { x: PX + best.x, y: PY + best.y, rid: best.rid } : null;
+}
+
+function toggleLock(s, rid) {
+  if (s.regDone[rid]) return;
+  s.lockRid = s.lockRid === rid ? 0 : rid;
+  autoCan(s, s.lockRid || rid);
+  sfxRattle();
 }
 
 // The nearest paintable pixel to a tapped point (small search ring),
