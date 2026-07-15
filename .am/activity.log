@@ -85,3 +85,8 @@
 2026-07-15T13:01:15Z	Matthew Reider	accepted	burner/No-way-to-submit-a-piece-early-on-touch-add-DONE-button-at-60-percent.md	Bar verified at phone size with ?reads probe; regression clean; PM's no-small-controls rule applied (bar is ~310 CSS px wide).
 2026-07-15T13:19:41Z	Matthew Reider	chore	burner/PWA-manifest-and-icons-installable-no-address-bar-orientation-lock.md	target=priority position=top
 2026-07-15T13:19:41Z	Matthew Reider	started	burner/PWA-manifest-and-icons-installable-no-address-bar-orientation-lock.md	
+2026-07-15T13:21:33Z	Matthew Reider	accepted	burner/PWA-manifest-and-icons-installable-no-address-bar-orientation-lock.md	
+2026-07-15T13:21:33Z	Matthew Reider	accepted	burner/PWA-manifest-and-icons-installable-no-address-bar-orientation-lock.md	
+2026-07-15T13:21:33Z	Matthew Reider	accepted	burner/PWA-manifest-and-icons-installable-no-address-bar-orientation-lock.md	Manifest 200 w/ manifest+json, icons 200 png, orientation lock added, hint copy now A2HS. Install flow itself needs PM's phone to confirm.
+2026-07-15T13:51:29Z	Matthew Reider	chore	burner/Shorten-fullscreen-hint-to-one-line.md	target=priority position=top
+2026-07-15T13:51:29Z	Matthew Reider	started	burner/Shorten-fullscreen-hint-to-one-line.md	
