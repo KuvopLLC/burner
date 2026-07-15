@@ -13,6 +13,26 @@ export const PIECE_W = 240, PIECE_H = 90;
 // Region ids
 export const R_FILL_A = 1, R_FILL_B = 2, R_OUTLINE = 3, R_SHADOW = 4, R_CLOUD = 5;
 
+// Round the staircase corners of a mask: empty pixels hugged by three
+// filled orthogonal neighbors fill in, filled pixels with fewer than
+// two stay. A couple of passes turns type into fat marker strokes.
+function roundMask(src, w, h, passes) {
+  let a = src;
+  for (let p = 0; p < passes; p++) {
+    const b = new Uint8Array(a);
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x;
+        const n = a[i - 1] + a[i + 1] + a[i - w] + a[i + w];
+        if (!a[i] && n >= 3) b[i] = 1;          // fill inner corners
+        else if (a[i] && n <= 0) b[i] = 0;      // drop lone specks
+      }
+    }
+    a = b;
+  }
+  return a;
+}
+
 function dilate(src, w, h, passes) {
   let a = src;
   for (let p = 0; p < passes; p++) {
@@ -167,14 +187,35 @@ export function makePiece(tag, seed, partnerTag = null, forceWord = null) {
   const nStars = Math.floor(rng() * 3) + (hasCrown ? 0 : 1);
   const hasCharm = !animal && rng() < 0.4 ? pick(rng, ['heart', 'bolt', 'spiral', 'copyright']) : null;
 
+  // 1c. Roll tonight's style — the blackbook is deep
+  const style = {
+    form: forceWord ? 'block' : pick(rng, ['block', 'block', 'bubble', 'bubble', 'lean']),
+    lean: !forceWord && rng() < 0.3 ? (rng() < 0.5 ? 1 : -1) : 0,
+    threeD: pick(rng, ['extrude', 'extrude', 'drop']), // every piece keeps a real shadow region
+    fill: pick(rng, ['fade', 'fade', 'splitcap', 'crackle']),
+    outline: rng() < 0.4 ? 'keyline' : 'single',
+    bg: pick(rng, ['cloud', 'cloud', 'splash', 'burst']),
+    bits: !forceWord && rng() < 0.5,
+    fusedArrows: !forceWord && !hasArrows && rng() < 0.45,
+    drips: rng() < 0.5,
+  };
+
+
   // 1. Render the word as big bouncing letters (5x7 font, scaled fat)
   const [lcv, lc] = makeCanvas(w, h);
   const chars = word.split('');
   const reserve = animal ? 42 : 0;
   // forced words (logos, level cards) overlap less so they stay legible
   const advF = forceWord ? 5.4 : 4.6;
-  const s = Math.max(3, Math.min(8, Math.floor((w - 50 - reserve) / (chars.length * advF))));
-  const adv = advF * s; // letters overlap a touch, graffiti style
+  let s = Math.max(3, Math.min(8, Math.floor((w - 50 - reserve) / (chars.length * advF))));
+  // fat letters need room or they melt together; shrink a step if the
+  // fattened word would overflow
+  let fatPre = Math.max(1, Math.round(s * (style.form === 'bubble' ? 0.55 : 0.35)));
+  if ((advF * s + fatPre * 1.8) * chars.length > w - 40 - reserve && s > 3) {
+    s--;
+    fatPre = Math.max(1, Math.round(s * (style.form === 'bubble' ? 0.55 : 0.35)));
+  }
+  const adv = advF * s + fatPre * 1.8; // overlap a touch, but stay letters
   const total = adv * (chars.length - 1) + 5 * s;
   let x = (w - total) / 2 - animalSide * (reserve / 2);
   const startX = x;
@@ -233,19 +274,6 @@ export function makePiece(tag, seed, partnerTag = null, forceWord = null) {
     stampMask(lc, rows, clampX(sx, mw), clampY(sy, mh), sc);
   }
 
-  // 1c. Roll tonight's style — the blackbook is deep
-  const style = {
-    form: forceWord ? 'block' : pick(rng, ['block', 'block', 'bubble', 'bubble', 'lean']),
-    lean: !forceWord && rng() < 0.3 ? (rng() < 0.5 ? 1 : -1) : 0,
-    threeD: pick(rng, ['extrude', 'extrude', 'drop']), // every piece keeps a real shadow region
-    fill: pick(rng, ['fade', 'fade', 'splitcap', 'crackle']),
-    outline: rng() < 0.4 ? 'keyline' : 'single',
-    bg: pick(rng, ['cloud', 'cloud', 'splash', 'burst']),
-    bits: !forceWord && rng() < 0.5,
-    fusedArrows: !forceWord && !hasArrows && rng() < 0.45,
-    drips: rng() < 0.5,
-  };
-
   // 2. Letter mask
   const img = lc.getImageData(0, 0, w, h).data;
   let letters = new Uint8Array(w * h);
@@ -263,7 +291,11 @@ export function makePiece(tag, seed, partnerTag = null, forceWord = null) {
     }
     letters = sheared;
   }
-  letters = dilate(letters, w, h, style.form === 'bubble' ? 2 : 1);
+  // fat marker letterforms: the fatness scales with the letters, so a
+  // 5px stroke becomes a 9-11px bar — then round the corners off
+  const fat = fatPre;
+  letters = dilate(letters, w, h, fat);
+  letters = roundMask(letters, w, h, fat + 1);
 
   // 2b. bits: stair-step notches and slice cuts through the bars
   if (style.bits) {
