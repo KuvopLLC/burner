@@ -101,7 +101,7 @@ export const paintScene = {
       elapsed: 0,
       // the street: contact enemies, gear pickups, Mario rules
       enemies: [],
-      spawnT: spot.danger > 0 ? 5 + rng() * 4 : Infinity,
+      spawnT: spot.danger > 0 ? 8 + rng() * 4 : Infinity, // night starts with a working window
       items: [],
       itemT: 9 + rng() * 6,
       powered: true,      // the flow: one press fills a whole region
@@ -314,7 +314,7 @@ export const paintScene = {
         kind: pick(s.rng, ['chain', 'yak', 'ticket']),
         x: SURF_X + 10 + s.rng() * 230, life: 12, bob: s.rng() * 6.28,
       });
-      s.itemT = (s.powered ? 14 : 7) + s.rng() * 5;
+      s.itemT = (s.powered ? 14 : 5) + s.rng() * 4; // the street provides when you're down
     }
     for (const it of s.items) {
       it.life -= dt;
@@ -812,7 +812,7 @@ function burst(G, s) {
 function takeHit(G, s, byType) {
   if (s.powered) {
     s.powered = false;
-    s.inv = 1.8;
+    s.inv = 2.6; // knocked down, not out — room to reach the gear
     sfxHit();
     say(s, byType === 'dog' ? 'THE DOG GOT YOUR FLOW — GRAB SOME GEAR!' : 'HE KNOCKED YOUR FLOW — GRAB SOME GEAR!');
   } else {

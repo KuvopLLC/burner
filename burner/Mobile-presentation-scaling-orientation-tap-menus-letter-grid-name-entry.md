@@ -2,12 +2,15 @@
 title: Mobile presentation - scaling, orientation, tap menus, letter-grid name entry
 type: feature
 created: "2026-07-15T09:58:00Z"
-modified: "2026-07-15T10:39:10Z"
+modified: "2026-07-15T10:42:22Z"
 author: Matthew Reider
-status: started
+status: accepted
 estimate: "5"
 project: burner
 started: "2026-07-15T10:39:10Z"
+finished: "2026-07-15T10:42:22Z"
+delivered: "2026-07-15T10:42:22Z"
+accepted: "2026-07-15T10:42:22Z"
 ---
 
 ## Problem statement

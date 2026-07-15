@@ -47,3 +47,7 @@
 2026-07-15T10:38:56Z	Matthew Reider	started	burner/Tune-hazard-pacing-from-real-playtests.md	pull
 2026-07-15T10:39:10Z	Matthew Reider	unstarted	burner/Tune-hazard-pacing-from-real-playtests.md	
 2026-07-15T10:39:10Z	Matthew Reider	started	burner/Mobile-presentation-scaling-orientation-tap-menus-letter-grid-name-entry.md	
+2026-07-15T10:42:22Z	Matthew Reider	finished	burner/Mobile-presentation-scaling-orientation-tap-menus-letter-grid-name-entry.md	
+2026-07-15T10:42:22Z	Matthew Reider	delivered	burner/Mobile-presentation-scaling-orientation-tap-menus-letter-grid-name-entry.md	
+2026-07-15T10:42:22Z	Matthew Reider	accepted	burner/Mobile-presentation-scaling-orientation-tap-menus-letter-grid-name-entry.md	Verified at 844x390 with ?touch: letter grid renders with fat targets, paint shows gesture prompts, fill-scaling works. Desktop regression clean (2 up, 3 hearts). Real-device swipe feel needs PM's phone.
+2026-07-15T10:43:05Z	Matthew Reider	started	burner/Tune-hazard-pacing-from-real-playtests.md	
