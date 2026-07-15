@@ -142,7 +142,7 @@ export const paintScene = {
       },
       ped: null,
       pedTimer: 5 + rng() * 6,
-      msg: IS_TOUCH ? 'HOLD > TO WALK · STAND STILL TO PAINT'
+      msg: IS_TOUCH ? 'TAP THE WALL TO PAINT IT'
         : 'CLICK THE WALL · SPACE JUMP · H HIDE',
       msgT: 5,
       sprayT: 0,
@@ -474,11 +474,23 @@ export const paintScene = {
     if (s.dead) return;
     if (s.done) return; // result transition handles itself
     s.hidden = false;
+    s.fx.push({ x, y, t: 0 }); // every tap answers immediately
     const walkX = Math.max(30, Math.min(W - 52, x - 10));
     const spot = findWork(s, Math.round(x - PX), Math.round(y - PY));
-    s.order = spot
-      ? { x: Math.max(30, Math.min(W - 52, PX + spot.px - 10)), px: spot.px, py: spot.py, rid: spot.rid }
-      : { x: walkX };
+    if (!spot) {
+      const onWall = y >= PY - 6 && y < PY + s.piece.h + 6 && x >= PX - 6 && x < PX + s.piece.w + 6;
+      if (onWall && s.msgT <= 0) say(s, 'NOTHING TO PAINT THERE — LOOK FOR THE GHOST');
+      s.order = { x: walkX };
+      return;
+    }
+    // close enough? paint NOW — no walk, no wait
+    if (!s.flood && Math.abs((PX + spot.px) - (s.kidX + 10)) <= s.burstR + 26) {
+      s.order = null;
+      autoCan(s, spot.rid);
+      burstAt(G, s, spot.px, spot.py, spot.rid);
+      return;
+    }
+    s.order = { x: Math.max(30, Math.min(W - 52, PX + spot.px - 10)), px: spot.px, py: spot.py, rid: spot.rid };
   },
 
   swipe(G, dir, axis = 'y') {
@@ -537,6 +549,21 @@ export const paintScene = {
         const fy = Math.round(f.y + Math.sin(a * 0.3927) * rr);
         if (fx >= SURF_X && fx < SURF_X + 264 && fy >= 26 && fy < 132) ctx.fillRect(fx, fy, 1, 1);
       }
+      ctx.globalAlpha = 1;
+    }
+
+    // where you sent him: the pending order pulses until he gets there
+    if (s.order && s.order.rid !== undefined && !s.dead && !s.done) {
+      const ox = PX + s.order.px, oy = PY + s.order.py;
+      const rr2 = 5 + Math.sin(s.pulse * 2) * 2;
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = '#ffe040';
+      for (let a = 0; a < 12; a++) {
+        const ax = Math.round(ox + Math.cos(a * 0.5236) * rr2);
+        const ay = Math.round(oy + Math.sin(a * 0.5236) * rr2);
+        if (ax >= SURF_X && ax < SURF_X + 264 && ay >= 26 && ay < 132) ctx.fillRect(ax, ay, 1, 1);
+      }
+      ctx.fillRect(Math.round(ox), Math.round(oy), 1, 1);
       ctx.globalAlpha = 1;
     }
 

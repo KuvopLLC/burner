@@ -90,3 +90,8 @@
 2026-07-15T13:21:33Z	Matthew Reider	accepted	burner/PWA-manifest-and-icons-installable-no-address-bar-orientation-lock.md	Manifest 200 w/ manifest+json, icons 200 png, orientation lock added, hint copy now A2HS. Install flow itself needs PM's phone to confirm.
 2026-07-15T13:51:29Z	Matthew Reider	chore	burner/Shorten-fullscreen-hint-to-one-line.md	target=priority position=top
 2026-07-15T13:51:29Z	Matthew Reider	started	burner/Shorten-fullscreen-hint-to-one-line.md	
+2026-07-15T13:51:45Z	Matthew Reider	accepted	burner/Shorten-fullscreen-hint-to-one-line.md	
+2026-07-15T13:51:45Z	Matthew Reider	accepted	burner/Shorten-fullscreen-hint-to-one-line.md	
+2026-07-15T13:51:45Z	Matthew Reider	accepted	burner/Shorten-fullscreen-hint-to-one-line.md	Copy cut from 3 clauses to 4 words; deployed.
+2026-07-15T13:56:29Z	Matthew Reider	bug	burner/Tap-on-piece-gives-no-feedback-paint-feels-broken.md	target=priority position=top
+2026-07-15T13:56:29Z	Matthew Reider	started	burner/Tap-on-piece-gives-no-feedback-paint-feels-broken.md	
