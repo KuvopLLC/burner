@@ -5,7 +5,7 @@
 <h3 align="center">An 8-bit graffiti arcade game. The Bronx, 1986.</h3>
 
 <p align="center">
-  <strong><a href="https://burner.mreider.workers.dev">▶ PLAY</a></strong>
+  <strong><a href="https://burn.mreider.com">▶ PLAY</a></strong>
 </p>
 
 <p align="center">
