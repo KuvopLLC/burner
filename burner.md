@@ -7,7 +7,6 @@
 |---|---|:---:|---|
 |  | [Animation upgrade more walk frames and spray-arm pose](burner/Animation-upgrade-more-walk-frames-and-spray-arm-pose.md) |  |  |
 |  | [Bring back the fame economy points per day compounding](burner/Bring-back-the-fame-economy-points-per-day-compounding.md) |  |  |
-|  | [Custom fat graffiti alphabet for pieces](burner/Custom-fat-graffiti-alphabet-for-pieces.md) |  |  |
 |  | [Flashlight security sweep hazard](burner/Flashlight-security-sweep-hazard.md) |  |  |
 |  | [More boroughs](burner/More-boroughs.md) |  |  |
 |  | [More critters and props snake boombox spray can characters](burner/More-critters-and-props-snake-boombox-spray-can-characters.md) |  |  |
@@ -15,12 +14,8 @@
 |  | [Racking runs steal paint kicks fits between nights](burner/Racking-runs-steal-paint-kicks-fits-between-nights.md) |  |  |
 |  | [Rain and weather nights](burner/Rain-and-weather-nights.md) |  |  |
 |  | [Rival crews cap your pieces mid-run](burner/Rival-crews-cap-your-pieces-mid-run.md) |  |  |
-|  | [Subway station as a fourth spot kind](burner/Subway-station-as-a-fourth-spot-kind.md) |  |  |
-|  | [Tune hazard pacing from real playtests](burner/Tune-hazard-pacing-from-real-playtests.md) |  |  |
 |  | [Whole-car pieces multi-night burners](burner/Whole-car-pieces-multi-night-burners.md) |  |  |
-|  | [Mobile presentation - scaling, orientation, tap menus, letter-grid name entry](burner/Mobile-presentation-scaling-orientation-tap-menus-letter-grid-name-entry.md) | 5 |  |
-|  | [Tap-to-paint core - unified gesture input, auto-can, mouse returns](burner/Tap-to-paint-core-unified-gesture-input-auto-can-mouse-returns.md) | 8 |  |
-| Total Points | | 13 | |
+| Total Points | | 0 | |
 
 ### Started
 | User | Title | Points | Tags |
@@ -41,6 +36,11 @@
 ### Accepted
 | User | Title | Points | Tags |
 |---|---|:---:|---|
+|  | [Custom fat graffiti alphabet for pieces](burner/Custom-fat-graffiti-alphabet-for-pieces.md) |  |  |
+|  | [Mobile presentation - scaling, orientation, tap menus, letter-grid name entry](burner/Mobile-presentation-scaling-orientation-tap-menus-letter-grid-name-entry.md) | 5 |  |
+|  | [Subway station as a fourth spot kind](burner/Subway-station-as-a-fourth-spot-kind.md) |  |  |
+|  | [Tap-to-paint core - unified gesture input, auto-can, mouse returns](burner/Tap-to-paint-core-unified-gesture-input-auto-can-mouse-returns.md) | 8 |  |
+|  | [Tune hazard pacing from real playtests](burner/Tune-hazard-pacing-from-real-playtests.md) |  |  |
 
 ### Rejected
 | User | Title | Points | Tags |
