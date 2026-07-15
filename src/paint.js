@@ -119,6 +119,9 @@ export const paintScene = {
       } : null,
       padHeld: {},        // pointerId -> 'left' | 'right'
       lockRid: 0,         // 0 = auto; else: work THIS color first
+      doneBtn: IS_TOUCH
+        ? { x: (W - 174) / 2, y: 148, w: 174, h: 30 }   // a bar you can hit at a glance
+        : { x: 186, y: 3, w: 46, h: 17 },               // header chip by the meter
       colorBtns: (() => {
         const bw = IS_TOUCH ? 30 : 20, bh = IS_TOUCH ? 24 : 15, gap = IS_TOUCH ? 6 : 4;
         const total = 5 * bw + 4 * gap;
@@ -434,11 +437,13 @@ export const paintScene = {
     const s = this.s;
     if (s.dead || s.done) return false;
     if (!s.pads) {
-      // desktop: the strip swatches are clickable
+      // desktop: DONE chip and strip swatches are clickable
+      if (callDoneHit(G, s, x, y)) return true;
       const cb = s.colorBtns.find(b => x >= b.x - 2 && x < b.x + b.w + 2 && y >= b.y - 2 && y < b.y + b.h + 2);
       if (cb) { toggleLock(s, cb.rid); return true; }
       return false;
     }
+    if (callDoneHit(G, s, x, y)) return true;
     const cb = s.colorBtns.find(b => x >= b.x - 2 && x < b.x + b.w + 2 && y >= b.y - 2 && y < b.y + b.h + 2);
     if (cb) { toggleLock(s, cb.rid); return true; }
     const hit = Object.entries(s.pads).find(([, r]) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
@@ -646,6 +651,16 @@ export const paintScene = {
     ctx.globalAlpha = 1;
     text(ctx, `NIGHT ${s.lvl + 1}`, 8, 5, '#fff');
     meter(ctx, 122, 6, 56, 7, frac, frac >= 0.6 ? '#40cc50' : '#cccc40');
+    if (frac >= 0.6 && !s.done && !s.dead) {
+      const b = s.doneBtn;
+      const on = Math.sin(s.pulse * 1.6) > -0.4;
+      ctx.globalAlpha = IS_TOUCH ? 0.92 : 1;
+      rect(ctx, b.x, b.y, b.w, b.h, on ? '#123f1c' : '#0e2c16');
+      frame(ctx, b.x, b.y, b.w, b.h, on ? '#40e050' : '#2a8038');
+      ctx.globalAlpha = 1;
+      if (IS_TOUCH) stext(ctx, 'DONE!', b.x + Math.floor(b.w / 2) - 15, b.y + 8, on ? '#40e050' : '#2a8038', 1);
+      else stext(ctx, 'DONE', b.x + 11, b.y + 5, on ? '#40e050' : '#2a8038');
+    }
     rect(ctx, 122 + Math.round(56 * 0.6), 5, 1, 9, '#c8c8d0'); // "it reads" mark
     text(ctx, `PIECE ${Math.floor(frac * 100)}%`, 124, 14, '#aaa');
     for (let i = 0; i < 3; i++) {
@@ -703,11 +718,12 @@ export const paintScene = {
     }
 
     if (s.msgT > 0) {
+      const msgY = IS_TOUCH ? 132 : 152;
       const mw = textWidth(s.msg) + 14;
       ctx.globalAlpha = 0.72;
-      rect(ctx, (W - mw) / 2, 152, mw, 13, '#0b0b12');
+      rect(ctx, (W - mw) / 2, msgY, mw, 13, '#0b0b12');
       ctx.globalAlpha = 1;
-      scenter(ctx, s.msg, 155, '#ffe040');
+      scenter(ctx, s.msg, msgY + 3, '#ffe040');
     }
 
     if (s.done) {
@@ -791,7 +807,7 @@ function afterBurst(s, hit, doneRid, mx, my) {
     celebrate(s);
   } else if (!s.readyTold && s.coveredCount / s.totalRegion >= 0.6) {
     s.readyTold = true;
-    say(s, 'IT READS — [ENTER] CALLS IT DONE');
+    say(s, IS_TOUCH ? 'IT READS — TAP DONE! TO CALL IT' : 'IT READS — [ENTER] OR THE DONE CHIP');
   }
 }
 
@@ -814,6 +830,18 @@ function updateAim(s) {
     }
   }
   s.aim = best ? { x: PX + best.x, y: PY + best.y, rid: best.rid } : null;
+}
+
+// the DONE chip: only bites once the piece reads
+function callDoneHit(G, s, x, y) {
+  const b = s.doneBtn;
+  const frac = s.coveredCount / s.totalRegion;
+  if (frac < 0.6 || s.done) return false;
+  if (x < b.x - 3 || x >= b.x + b.w + 3 || y < b.y - 3 || y >= b.y + b.h + 3) return false;
+  s.done = true;
+  s.doneT = 0;
+  sfxPop();
+  return true;
 }
 
 function toggleLock(s, rid) {

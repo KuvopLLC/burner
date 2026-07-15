@@ -75,3 +75,8 @@
 2026-07-15T12:53:58Z	Matthew Reider	accepted	burner/One-time-Chrome-for-fullscreen-hint-on-browsers-without-the-API.md	Feature-detect over UA-sniff; probe proves show-once persistence; deployed.
 2026-07-15T12:55:00Z	Matthew Reider	bug	burner/Cannot-choose-paint-color-on-mobile-add-tappable-color-buttons.md	target=priority position=top
 2026-07-15T12:55:00Z	Matthew Reider	started	burner/Cannot-choose-paint-color-on-mobile-add-tappable-color-buttons.md	
+2026-07-15T12:55:54Z	Matthew Reider	finished	burner/Cannot-choose-paint-color-on-mobile-add-tappable-color-buttons.md	
+2026-07-15T12:55:54Z	Matthew Reider	delivered	burner/Cannot-choose-paint-color-on-mobile-add-tappable-color-buttons.md	
+2026-07-15T12:55:54Z	Matthew Reider	accepted	burner/Cannot-choose-paint-color-on-mobile-add-tappable-color-buttons.md	Lock/auto toggle verified in mobile screenshot; regression clean. Auto-can had erased color ORDER as a choice — buttons restore it as strategy, not friction.
+2026-07-15T12:59:34Z	Matthew Reider	bug	burner/No-way-to-submit-a-piece-early-on-touch-add-DONE-button-at-60-percent.md	target=priority position=top
+2026-07-15T12:59:34Z	Matthew Reider	started	burner/No-way-to-submit-a-piece-early-on-touch-add-DONE-button-at-60-percent.md	

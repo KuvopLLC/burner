@@ -23,6 +23,10 @@ setInterval(() => {
       const spotId = new URLSearchParams(location.search).get('spot');
       G.run.spot = d.SPOTS.find(sp => sp.id === spotId) || d.SPOTS[0];
       G.go('paint');
+      if (new URLSearchParams(location.search).has('reads')) {
+        const st = G.scene.s;
+        st.coveredCount = Math.ceil(st.totalRegion * 0.66);
+      }
     });
   }
 }, 100);
