@@ -9,6 +9,33 @@
 export const IS_TOUCH = (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) ||
   (typeof location !== 'undefined' && location.search.includes('touch'));
 
+const FS_HINT_KEY = 'burner.fshint';
+
+function fsAvailable() {
+  if (typeof location !== 'undefined' && location.search.includes('nofs')) return false;
+  const el = document.documentElement;
+  return !!(el.requestFullscreen || el.webkitRequestFullscreen);
+}
+
+function goFullscreen() {
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+  else if (el.webkitRequestFullscreen) { try { el.webkitRequestFullscreen(); } catch (e) { /* nope */ } }
+}
+
+// browsers with no fullscreen (iPhone Safari, mainly) hear about
+// Chrome exactly once, then never again
+function fsHintOnce() {
+  try {
+    if (localStorage.getItem(FS_HINT_KEY)) return;
+    localStorage.setItem(FS_HINT_KEY, '1');
+  } catch (e) { /* private mode: show it, can't remember it */ }
+  const el = document.getElementById('fshint');
+  if (!el) return;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 9000);
+}
+
 const SWIPE_PX = 24;      // game-pixels of travel that make a swipe
 const SWIPE_MS = 400;     // within this long
 const TAP_SLOP = 10;      // movement under this is still a tap
@@ -21,8 +48,12 @@ export function bindInput(canvas, G, toGame, onFirstInteract) {
 
   canvas.addEventListener('pointerdown', e => {
     onFirstInteract();
-    if (IS_TOUCH && !document.fullscreenElement && document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+    if (IS_TOUCH) {
+      if (fsAvailable()) {
+        if (!document.fullscreenElement) goFullscreen();
+      } else {
+        fsHintOnce();
+      }
     }
     const p = toGame(e);
     G.mouse.x = p.x; G.mouse.y = p.y;

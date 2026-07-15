@@ -2,11 +2,14 @@
 title: Thumb controls - hold-to-move pad, jump-hide buttons, fullscreen, safe area
 type: feature
 created: "2026-07-15T12:44:00Z"
-modified: "2026-07-15T12:44:00Z"
+modified: "2026-07-15T12:47:03Z"
 author: Matthew Reider
-status: started
+status: accepted
 estimate: "5"
 started: "2026-07-15T12:44:00Z"
+finished: "2026-07-15T12:47:03Z"
+delivered: "2026-07-15T12:47:03Z"
+accepted: "2026-07-15T12:47:03Z"
 ---
 
 ## Problem statement
