@@ -19,8 +19,11 @@ function fsAvailable() {
 
 function goFullscreen() {
   const el = document.documentElement;
-  if (el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
-  else if (el.webkitRequestFullscreen) { try { el.webkitRequestFullscreen(); } catch (e) { /* nope */ } }
+  const lock = () => {
+    if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+  };
+  if (el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).then(lock).catch(() => {});
+  else if (el.webkitRequestFullscreen) { try { el.webkitRequestFullscreen(); lock(); } catch (e) { /* nope */ } }
 }
 
 // browsers with no fullscreen (iPhone Safari, mainly) hear about

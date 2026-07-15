@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>BURNER</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BURNER">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%;
@@ -60,7 +67,7 @@
 <canvas id="screen" width="384" height="216"></canvas>
 <div id="rotate">ROTATE YOUR PHONE<br>&#8634;<br>THE BRONX IS WIDE</div>
 <div id="unfull" onpointerdown="event.stopPropagation();document.exitFullscreen&&document.exitFullscreen()">&#10005;</div>
-<div id="fshint" onpointerdown="event.stopPropagation();this.style.display='none'">THIS BROWSER CAN'T GO FULLSCREEN<br>ON IPHONE, CHROME CAN &middot; TAP TO DISMISS</div>
+<div id="fshint" onpointerdown="event.stopPropagation();this.style.display='none'">FOR TRUE FULLSCREEN: SHARE &rarr; ADD TO HOME SCREEN<br>THEN PLAY FROM THE ICON &middot; TAP TO DISMISS</div>
 <div id="ts-slot" style="position:absolute;left:-9999px;top:0"></div>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <script type="module" src="src/main.js"></script>

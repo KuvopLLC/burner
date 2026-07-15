@@ -80,3 +80,8 @@
 2026-07-15T12:55:54Z	Matthew Reider	accepted	burner/Cannot-choose-paint-color-on-mobile-add-tappable-color-buttons.md	Lock/auto toggle verified in mobile screenshot; regression clean. Auto-can had erased color ORDER as a choice — buttons restore it as strategy, not friction.
 2026-07-15T12:59:34Z	Matthew Reider	bug	burner/No-way-to-submit-a-piece-early-on-touch-add-DONE-button-at-60-percent.md	target=priority position=top
 2026-07-15T12:59:34Z	Matthew Reider	started	burner/No-way-to-submit-a-piece-early-on-touch-add-DONE-button-at-60-percent.md	
+2026-07-15T13:01:15Z	Matthew Reider	finished	burner/No-way-to-submit-a-piece-early-on-touch-add-DONE-button-at-60-percent.md	
+2026-07-15T13:01:15Z	Matthew Reider	delivered	burner/No-way-to-submit-a-piece-early-on-touch-add-DONE-button-at-60-percent.md	
+2026-07-15T13:01:15Z	Matthew Reider	accepted	burner/No-way-to-submit-a-piece-early-on-touch-add-DONE-button-at-60-percent.md	Bar verified at phone size with ?reads probe; regression clean; PM's no-small-controls rule applied (bar is ~310 CSS px wide).
+2026-07-15T13:19:41Z	Matthew Reider	chore	burner/PWA-manifest-and-icons-installable-no-address-bar-orientation-lock.md	target=priority position=top
+2026-07-15T13:19:41Z	Matthew Reider	started	burner/PWA-manifest-and-icons-installable-no-address-bar-orientation-lock.md	

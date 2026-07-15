@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;overflow:hidden;background:#0c0c1e}canvas{display:block}</style></head>
+<body><canvas id="i"></canvas>
+<script type="module">
+import { makePiece, renderPiece } from '../src/gen.js';
+const size = parseInt(new URLSearchParams(location.search).get('size') || '512', 10);
+const cv = document.getElementById('i');
+cv.width = size; cv.height = size;
+const ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+ctx.fillStyle = '#0c0c1e';
+ctx.fillRect(0, 0, size, size);
+// the crown-B energy: BRN over two lines? keep it simple — 'BURNER' fits square-ish scaled
+const piece = renderPiece(makePiece('BRN', 909, null, 'BRN'));
+// piece canvas is 240x90; crop letters region and fit with safe-zone padding
+const pad = Math.round(size * 0.12);
+const availW = size - pad * 2;
+const drawH = Math.round(availW * (90 / 240));
+ctx.drawImage(piece, 0, 0, 240, 90, pad, Math.round((size - drawH) / 2), availW, drawH);
+</script></body></html>
